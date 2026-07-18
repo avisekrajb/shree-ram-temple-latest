@@ -259,7 +259,7 @@ const heroImage3 = '/3.jpg';
 const heroImage4 = '/4.jpg';
 const heroImage5 = '/6.jpg';
 
-// ─── Fullscreen Image Modal ───────────────────────────────────────────────────
+// ─── Fullscreen Image Modal ──────────────────────────────────────────────────
 function ImageModal({ src, alt, onClose }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onClose(); };
