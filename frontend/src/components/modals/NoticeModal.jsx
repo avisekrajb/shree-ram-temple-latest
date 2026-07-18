@@ -1,0 +1,401 @@
+import React, { useState, useEffect } from 'react';
+import { X, ArrowRight, QrCode, Phone, MapPin, Heart } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../context/LanguageContext';
+import api from '../../services/api';
+
+// Using sessionStorage instead of localStorage to show on every refresh
+// but only once per browser session (tab)
+const STORAGE_KEY = 'rcmt:notice-dismissed';
+
+const NoticeModal = () => {
+  const { t, lang } = useLanguage();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [displayLang, setDisplayLang] = useState('ne');
+
+  // Fetch settings on mount
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await api.get('/admin/settings');
+        setSettings(response.data);
+      } catch (error) {
+        console.error('Error fetching settings:', error);
+        // Set default settings if API fails
+        setSettings({
+          notice: {
+            enabled: true,
+            title: { 
+              ne: 'हार्दिक अनुरोध', 
+              en: 'Heartfelt Request',
+              hi: 'हार्दिक अनुरोध',
+              zh: '诚挚请求',
+              ta: 'மனமார்ந்த வேண்டுகோள்'
+            },
+            banner: { 
+              ne: "'लिफ्ट' राख्ने कार्यमा सहभागी बनौं ।", 
+              en: "Let's participate in installing the 'Lift'.",
+              hi: "'लिफ्ट' रखने कार्य में सहभागी बनें ।",
+              zh: "让我们参与安装'电梯'。",
+              ta: "'லிஃப்ட்' அமைப்பதில் பங்கேற்போம்."
+            },
+            body: { 
+              ne: 'भगवान् श्रीरामचन्द्रको मन्दिरमा वृद्ध-वृद्धा एवं विकलाङ्गहरूलाई दर्शन एवं आउ-जाउ गर्न सजिलो होस् भनी मन्दिरको ठिक पूर्वपट्टि ८ जनासम्म अटाउने लिफ्टको स्थापना ६ महीनाभित्र सक्ने गरी कार्य अगाडि बढिरहेको सन्दर्भमा यहाँहरूको सहयोगको अपेक्षासाथ यो सूचना जनसमक्ष जारी गरिएको छ ।',
+              en: 'To make it easier for the elderly and differently-abled to visit and move around at the Shree Ramchandra Temple, we are installing a lift on the eastern side of the temple that can accommodate up to 8 people. The work is expected to be completed within 6 months.',
+              hi: 'श्रीरामचन्द्र मंदिर में बुजुर्गों और दिव्यांगों को दर्शन और आने-जाने में सुविधा हो, इसके लिए मंदिर के ठीक पूर्व की ओर 8 लोगों तक की क्षमता वाली लिफ्ट स्थापित की जा रही है, जो 6 महीने के भीतर पूरी हो जाएगी।',
+              zh: '为了方便老年人和残障人士在室利罗摩钱德拉神庙参观和活动，我们正在神庙东侧安装一部可容纳8人的电梯，预计在6个月内完工。',
+              ta: 'ஸ்ரீ ராமச்சந்திர கோயிலில் முதியவர்கள் மற்றும் ஊனமுற்றோர் எளிதில் வந்து செல்லும் வகையில், கோயிலின் கிழக்குப் பக்கத்தில் 8 பேர் பயணிக்கும் வகையில் உள்ள லிஃப்ட் அமைக்கும் பணி 6 மாதங்களில் முடிக்க திட்டமிடப்பட்டுள்ளது.'
+            },
+            cost: { 
+              ne: 'लिफ्टसहितको संरचनाको लागि करिब रु. ५५,००,०००/- (पचपन्न लाख) पर्ने अनुमान गरिएको छ ।',
+              en: 'The estimated cost for the lift structure is approximately Rs. 55,00,000/- (Fifty-five lakh).',
+              hi: 'लिफ्ट सहित की संरचना के लिए लगभग रु. ५५,००,०००/- (पचपन्न लाख) खर्च होने का अनुमान है।',
+              zh: '电梯结构的估计成本约为550万卢比。',
+              ta: 'லிஃப்ட் கட்டமைப்பிற்கான மதிப்பீடு ரூ. 55,00,000/- (ஐம்பத்தி ஐந்து லட்சம்) ஆகும்.'
+            },
+            donors: {
+              ne: 'यस कार्यमा रु. १५,०००/- (पन्ध्र हजार) देखि माथि सहयोग गर्ने उदारमना दाताहरूको नाम लिफ्टको प्रवेशद्वारको वायाँपट्टि आकर्षक रूपले शिलापत्रमा उत्कीर्ण गरी राखिने जानकारी गराउँदछौं ।',
+              en: 'The names of generous donors contributing Rs. 15,000/- (Fifteen thousand) and above will be prominently engraved on a stone plaque on the left side of the lift entrance.',
+              hi: 'इस कार्य में रु. १५,०००/- (पंद्रह हजार) से अधिक सहयोग करने वाले उदार दाताओं के नाम लिफ्ट के प्रवेश द्वार के बाईं ओर आकर्षक रूप से शिलापत्र पर उत्कीर्ण किए जाएंगे।',
+              zh: '捐赠15,000卢比及以上的慷慨捐助者姓名将刻在电梯入口左侧的石碑上。',
+              ta: 'ரூ. 15,000/- (பதினைந்து ஆயிரம்) மற்றும் அதற்கு மேல் நன்கொடை அளிக்கும் தாராள மனம் கொண்ட தானியர்களின் பெயர்கள் லிஃப்ட் நுழைவாயிலின் இடது பக்கத்தில் கல்வெட்டில் பொறிக்கப்படும்.'
+            },
+            applicant: { 
+              ne: 'प्रार्थी', 
+              en: 'Applicant',
+              hi: 'प्रार्थी',
+              zh: '申请人',
+              ta: 'விண்ணப்பதாரர்'
+            },
+            committee: { 
+              ne: 'श्रीरामचन्द्रमन्दिर जीर्णोद्धार एवं संवर्द्धन समिति',
+              en: 'Shree Ramchandra Temple Renovation & Development Committee',
+              hi: 'श्रीरामचन्द्र मंदिर जीर्णोद्धार एवं संवर्द्धन समिति',
+              zh: '室利罗摩钱德拉神庙修缮与发展委员会',
+              ta: 'ஸ்ரீ ராமச்சந்திர கோயில் புனரமைப்பு மற்றும் மேம்பாட்டுக் குழு'
+            },
+            location: { 
+              ne: 'बत्तीसपुतली, काठमाडौं, नेपाल', 
+              en: 'Battisputali, Kathmandu, Nepal',
+              hi: 'बत्तीसपुतली, काठमाडौं, नेपाल',
+              zh: '尼泊尔加德满都巴提斯普塔利',
+              ta: 'பட்டீஸ்புதாலி, காத்மாண்டு, நேபாளம்'
+            },
+            contactNo: { 
+              ne: 'सम्पर्क नं.', 
+              en: 'Contact No.',
+              hi: 'सम्पर्क नं.',
+              zh: '联系电话',
+              ta: 'தொடர்பு எண்'
+            },
+            contactDetails: { 
+              ne: '01-4598526, 9851154432', 
+              en: '01-4598526, 9851154432',
+              hi: '01-4598526, 9851154432',
+              zh: '01-4598526, 9851154432',
+              ta: '01-4598526, 9851154432'
+            },
+            qrLabel: { 
+              ne: 'क्यू आर कोड', 
+              en: 'QR Code',
+              hi: 'क्यू आर कोड',
+              zh: '二维码',
+              ta: 'கியூ ஆர் குறியீடு'
+            },
+            donateBtn: { 
+              ne: 'सहयोग गर्नुहोस्', 
+              en: 'Donate Now',
+              hi: 'सहयोग करें',
+              zh: '立即捐赠',
+              ta: 'தானம் செய்யுங்கள்'
+            },
+          }
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  // Check if notice should be shown - using sessionStorage
+  useEffect(() => {
+    if (loading) return;
+    
+    // Check if dismissed in current session (tab)
+    const dismissed = sessionStorage.getItem(STORAGE_KEY);
+    const isNoticeEnabled = settings?.notice?.enabled !== false;
+    
+    // Show if not dismissed AND enabled
+    if (!dismissed && isNoticeEnabled) {
+      setOpen(true);
+      setDisplayLang('ne');
+    }
+  }, [loading, settings]);
+
+  // Update language when user changes
+  useEffect(() => {
+    if (open) {
+      const supportedLangs = ['en', 'ne', 'hi', 'zh', 'ta'];
+      if (supportedLangs.includes(lang)) {
+        setDisplayLang(lang);
+      } else {
+        setDisplayLang('ne');
+      }
+    }
+  }, [lang, open]);
+
+  const handleClose = () => {
+    setOpen(false);
+    // Store in sessionStorage - only for this browser session/tab
+    // This means modal will show again on next browser session
+    sessionStorage.setItem(STORAGE_KEY, '1');
+  };
+
+  const handleDonateClick = () => {
+    handleClose();
+    navigate('/donate');
+  };
+
+  const notice = settings?.notice || {};
+  const qrPhoto = settings?.donate?.qrPhoto || null;
+  
+  const getText = (obj) => {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj;
+    if (obj[displayLang]) return obj[displayLang];
+    if (obj.ne) return obj.ne;
+    if (obj.en) return obj.en;
+    const keys = Object.keys(obj);
+    return keys.length > 0 ? obj[keys[0]] : '';
+  };
+
+  const isDevLocale = displayLang === 'ne' || displayLang === 'hi';
+  const devFont = { fontFamily: "'Noto Serif Devanagari', 'Hind', serif" };
+  const bodyFont = isDevLocale ? devFont : {};
+
+  // Don't show if not open
+  if (!open) return null;
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4"
+          onClick={handleClose}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+
+          {/* Modal */}
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl"
+            style={{ background: 'linear-gradient(180deg, #fdf8e8 0%, #fcf4d6 100%)' }}
+          >
+            {/* Close button */}
+            <button
+              onClick={handleClose}
+              className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 text-gray-700" />
+            </button>
+
+            {/* Top decorative border */}
+            <div className="h-1.5 w-full bg-gradient-to-r from-red-800 via-amber-600 to-red-800 rounded-t-2xl" />
+
+            <div className="px-5 sm:px-8 py-6 sm:py-8">
+              {/* Language indicator */}
+              <div className="flex justify-end mb-2">
+                <span className="text-[10px] text-ink-soft/60 bg-white/50 px-2 py-0.5 rounded-full">
+                  {displayLang === 'ne' ? 'नेपाली' : 
+                   displayLang === 'hi' ? 'हिन्दी' :
+                   displayLang === 'zh' ? '中文' :
+                   displayLang === 'ta' ? 'தமிழ்' :
+                   'English'}
+                </span>
+              </div>
+
+              {/* Title */}
+              <h2
+                style={bodyFont}
+                className="text-center text-2xl sm:text-3xl font-bold text-red-900 mb-4"
+              >
+                {getText(notice.title) || 'हार्दिक अनुरोध'}
+              </h2>
+
+              {/* Banner */}
+              <div className="bg-red-800 rounded-xl px-4 py-3 mb-5 shadow-md">
+                <p
+                  style={bodyFont}
+                  className="text-center text-white text-lg sm:text-xl font-bold leading-relaxed"
+                >
+                  {getText(notice.banner) || "'लिफ्ट' राख्ने कार्यमा सहभागी बनौं ।"}
+                </p>
+              </div>
+
+              {/* Content with lift icons */}
+              <div className="flex gap-4 sm:gap-6">
+                {/* Left lift illustration */}
+                <div className="hidden sm:flex flex-col items-center justify-center shrink-0">
+                  <div className="w-16 h-28 border-2 border-gray-400 rounded-md bg-white flex items-center justify-center shadow-inner">
+                    <div className="w-12 h-20 border border-gray-300 rounded-sm bg-gray-50 flex items-center justify-center">
+                      <div className="flex flex-col gap-0.5 w-full px-1">
+                        <div className="h-2 bg-red-500 rounded" />
+                        <div className="flex-1 border border-gray-300 rounded-sm bg-gray-100 flex items-center justify-center">
+                          <span className="text-[10px] text-gray-400">🚪</span>
+                        </div>
+                        <div className="h-2 bg-red-500 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1 font-medium">Lift</span>
+                </div>
+
+                {/* Body text */}
+                <div className="flex-1">
+                  <p
+                    style={bodyFont}
+                    className="text-gray-800 text-sm sm:text-base leading-relaxed mb-4"
+                  >
+                    {getText(notice.body) || 'भगवान् श्रीरामचन्द्रको मन्दिरमा वृद्ध-वृद्धा एवं विकलाङ्गहरूलाई दर्शन एवं आउ-जाउ गर्न सजिलो होस् भनी मन्दिरको ठिक पूर्वपट्टि ८ जनासम्म अटाउने लिफ्टको स्थापना ६ महीनाभित्र सक्ने गरी कार्य अगाडि बढिरहेको सन्दर्भमा यहाँहरूको सहयोगको अपेक्षासाथ यो सूचना जनसमक्ष जारी गरिएको छ ।'}
+                  </p>
+
+                  {/* Cost highlight */}
+                  <div className="bg-amber-50 border border-amber-300 rounded-lg px-4 py-3 mb-4">
+                    <p
+                      style={bodyFont}
+                      className="text-gray-800 text-sm sm:text-base font-semibold"
+                    >
+                      {getText(notice.cost) || 'लिफ्टसहितको संरचनाको लागि करिब रु. ५५,००,०००/- (पचपन्न लाख) पर्ने अनुमान गरिएको छ ।'}
+                    </p>
+                  </div>
+
+                  <p
+                    style={bodyFont}
+                    className="text-gray-800 text-sm sm:text-base leading-relaxed"
+                  >
+                    {getText(notice.donors) || 'यस कार्यमा रु. १५,०००/- (पन्ध्र हजार) देखि माथि सहयोग गर्ने उदारमना दाताहरूको नाम लिफ्टको प्रवेशद्वारको वायाँपट्टि आकर्षक रूपले शिलापत्रमा उत्कीर्ण गरी राखिने जानकारी गराउँदछौं ।'}
+                  </p>
+                </div>
+
+                {/* Right lift illustration */}
+                <div className="hidden sm:flex flex-col items-center justify-center shrink-0">
+                  <div className="w-16 h-28 border-2 border-gray-400 rounded-md bg-white flex items-center justify-center shadow-inner">
+                    <div className="w-12 h-20 border border-gray-300 rounded-sm bg-gray-50 flex items-center justify-center">
+                      <div className="flex flex-col gap-0.5 w-full px-1">
+                        <div className="h-2 bg-red-500 rounded" />
+                        <div className="flex-1 border border-gray-300 rounded-sm bg-gray-100 flex items-center justify-center">
+                          <span className="text-[10px] text-gray-400">🚪</span>
+                        </div>
+                        <div className="h-2 bg-red-500 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-500 mt-1 font-medium">Lift</span>
+                </div>
+              </div>
+
+              {/* Divider */}
+              <div className="my-5 h-px bg-gradient-to-r from-transparent via-red-300 to-transparent" />
+
+              {/* QR + Contact Section */}
+              <div
+                className="rounded-xl overflow-hidden border border-green-800"
+                style={{ background: 'linear-gradient(135deg, #1a5e3a 0%, #0d4228 100%)' }}
+              >
+                <div className="flex flex-col sm:flex-row">
+                  {/* QR Code section */}
+                  <div className="flex items-center justify-center p-4 sm:p-5 sm:border-r border-b sm:border-b-0 border-white/20">
+                    <div className="text-center">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-lg flex items-center justify-center mx-auto shadow-md overflow-hidden">
+                        <div className="text-center px-2 w-full h-full flex items-center justify-center">
+                          {qrPhoto ? (
+                            <img src={qrPhoto} alt="QR" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center">
+                              <div className="text-[9px] text-red-700 font-bold mb-1">SCAN & PAY</div>
+                              <QrCode size={32} className="text-gray-600" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-white/80 text-xs mt-2 font-medium">
+                        {getText(notice.qrLabel) || 'क्यू आर कोड'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Contact info */}
+                  <div className="flex-1 p-4 sm:p-5 flex flex-col justify-center">
+                    <p className="text-amber-300 text-sm font-bold mb-2" style={bodyFont}>
+                      {getText(notice.applicant) || 'प्रार्थी'}
+                    </p>
+                    <p className="text-white text-sm sm:text-base font-bold leading-snug mb-1" style={bodyFont}>
+                      {getText(notice.committee) || 'श्रीरामचन्द्रमन्दिर जीर्णोद्धार एवं संवर्द्धन समिति'}
+                    </p>
+                    <p className="text-white/80 text-sm mb-3 flex items-center gap-1.5" style={bodyFont}>
+                      <MapPin size={14} className="text-amber-300" />
+                      {getText(notice.location) || 'बत्तीसपुतली, काठमाडौं, नेपाल'}
+                    </p>
+                    <p className="text-white/90 text-sm flex items-center gap-1.5" style={bodyFont}>
+                      <Phone size={14} className="text-amber-300" />
+                      {getText(notice.contactNo) || 'सम्पर्क नं.'}: {getText(notice.contactDetails) || '01-4598526, 9851154432'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Donate Button */}
+              <div className="mt-5 text-center">
+                <button
+                  onClick={handleDonateClick}
+                  className="inline-flex items-center gap-3 px-8 py-3.5 rounded-xl text-white font-bold text-sm sm:text-base shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                  style={{
+                    background: 'linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%)',
+                    ...bodyFont,
+                  }}
+                >
+                  <Heart size={18} />
+                  {getText(notice.donateBtn) || 'सहयोग गर्नुहोस्'}
+                  <ArrowRight size={18} />
+                </button>
+              </div>
+
+              {/* Language hint */}
+              <p className="text-center text-[10px] text-ink-soft/50 mt-3">
+                {displayLang === 'ne' ? 'नेपालीमा देखाइएको' :
+                 displayLang === 'hi' ? 'हिन्दी में दिखाया गया' :
+                 displayLang === 'zh' ? '以中文显示' :
+                 displayLang === 'ta' ? 'தமிழில் காட்டப்பட்டது' :
+                 'Displayed in English'}
+              </p>
+            </div>
+
+            {/* Bottom decorative border */}
+            <div className="flex h-2">
+              <div className="flex-1 bg-red-800" />
+              <div className="flex-1 bg-white" />
+              <div className="flex-1 bg-green-800" />
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+export default NoticeModal;

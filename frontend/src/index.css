@@ -1,0 +1,241 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --maroon: #7A1F2B;
+    --maroon-deep: #5B1420;
+    --vermilion: #C1440E;
+    --marigold: #E8A93D;
+    --leaf: #1F4E3D;
+    --ink: #201F23;
+    --ink-soft: #6B6B72;
+    --line: #E7E7EB;
+    --panel: #F7F7F8;
+    --white: #ffffff;
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(43,24,16,0.10);
+    --header-h: 64px;
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    background: var(--white);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4 {
+    font-family: 'Fraunces', serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .rt-container {
+    @apply max-w-7xl mx-auto px-6 py-14;
+  }
+  
+  .rt-btn {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all duration-200 whitespace-nowrap;
+  }
+  
+  .rt-btn-primary {
+    @apply bg-vermilion text-white shadow-lg shadow-vermilion/30 hover:bg-[#a83a0c] hover:-translate-y-0.5;
+  }
+  
+  .rt-btn-outline {
+    @apply bg-transparent border-2 border-maroon text-maroon hover:bg-maroon hover:text-white;
+  }
+  
+  .rt-btn-ghost {
+    @apply bg-line text-ink hover:bg-[#d0d0d5];
+  }
+  
+  .rt-btn-ghost-light {
+    @apply bg-white/20 text-white border border-white/50 backdrop-blur-sm hover:bg-white/30;
+  }
+  
+  .rt-btn-full {
+    @apply w-full justify-center;
+  }
+  
+  .rt-card {
+    @apply bg-white border border-line rounded-rt shadow-rt p-6;
+  }
+  
+  .rt-header {
+    @apply fixed top-0 left-0 right-0 z-50 bg-white backdrop-blur-md shadow-sm;
+  }
+  
+  .rt-header-spacer {
+    @apply h-16;
+  }
+}
+
+/* Modal Animations */
+@keyframes modalSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    transform: translateY(10px) scale(0.98);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes modalBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rt-modal-backdrop {
+  animation: modalBackdropIn 0.25s ease forwards;
+}
+
+.rt-modal-sheet {
+  animation: modalSlideUp 0.3s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+
+@media (min-width: 768px) {
+  .rt-modal-sheet {
+    animation: modalFadeIn 0.25s ease forwards;
+  }
+}
+
+/* Toast Animation */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.rt-toast-animate {
+  animation: toastIn 0.3s ease forwards;
+}
+
+/* Loading Spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rt-spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+
+
+
+/* Add to your index.css */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+}
+
+/* Toast container */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-item {
+  pointer-events: auto;
+  padding: 12px 20px;
+  border-radius: 999px;
+  color: white;
+  font-size: 13.5px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 90vw;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toast-item:hover {
+  transform: scale(1.02);
+}
+
+.toast-item-success {
+  background: #16A34A;
+}
+
+.toast-item-error {
+  background: #EF4444;
+}
+
+.toast-item-warning {
+  background: #F59E0B;
+}
+
+.toast-item-info {
+  background: #3B82F6;
+}
+
+.toast-close {
+  margin-left: 8px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
