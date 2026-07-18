@@ -6,7 +6,7 @@ import api from '../../services/api';
 import {
   Home, Info, ScrollText, CalendarDays, ImageIcon, Hand, Gift, Phone,
   Globe, User, LogOut, Menu, X, ChevronDown, MapPin, Sun, BadgeCheck,
-  CircleDot, LayoutDashboard, ClipboardList, ChevronRight, Plus, Camera
+  CircleDot, LayoutDashboard, ClipboardList, ChevronRight, Plus, Camera, Users, BookOpen
 } from 'lucide-react';
 
 const Header = ({ onLogout, setAuthModal }) => {
@@ -17,6 +17,7 @@ const Header = ({ onLogout, setAuthModal }) => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [aboutDropdownOpen, setAboutDropdownOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const headerRef = useRef(null);
 
@@ -37,6 +38,7 @@ const Header = ({ onLogout, setAuthModal }) => {
     { key: '/', label: t.navHome, icon: Home, protected: false },
     { key: '/about', label: t.navAbout, icon: Info, protected: false },
     { key: '/history', label: t.navHistory, icon: ScrollText, protected: false },
+    { key: '/blogs', label: t.navBlogs || 'Blogs', icon: BookOpen, protected: false },
     { key: '/events', label: t.navEvents, icon: CalendarDays, protected: false },
     { key: '/gallery', label: t.navGallery, icon: ImageIcon, protected: false },
     { key: '/booking', label: t.navBooking, icon: Hand, protected: true },
@@ -59,6 +61,7 @@ const Header = ({ onLogout, setAuthModal }) => {
       if (headerRef.current && !headerRef.current.contains(e.target)) {
         setLangMenuOpen(false);
         setProfileMenuOpen(false);
+        setAboutDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -71,6 +74,7 @@ const Header = ({ onLogout, setAuthModal }) => {
 
   const handleNavClick = (path, isProtected) => {
     setMobileNavOpen(false);
+    setAboutDropdownOpen(false);
     if (isProtected && !user) {
       setAuthModal('login');
       return;
@@ -115,19 +119,56 @@ const Header = ({ onLogout, setAuthModal }) => {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => handleNavClick(item.key, item.protected)}
-              className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-colors ${
-                isActive(item.key) 
-                  ? 'bg-maroon text-white' 
-                  : 'text-ink-soft hover:text-maroon hover:bg-maroon/10'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+          {navItems.map((item) => {
+            if (item.key === '/about') {
+              return (
+                <div key={item.key} className="relative">
+                  <button
+                    onClick={() => setAboutDropdownOpen(!aboutDropdownOpen)}
+                    className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-colors inline-flex items-center gap-1 ${
+                      isActive(item.key) || location.pathname === '/templeteams'
+                        ? 'bg-maroon text-white' 
+                        : 'text-ink-soft hover:text-maroon hover:bg-maroon/10'
+                    }`}
+                  >
+                    {item.label}
+                    <ChevronDown size={14} className={aboutDropdownOpen ? 'rotate-180' : ''} />
+                  </button>
+                  {aboutDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-line rounded-xl shadow-lg min-w-[180px] p-1.5 z-50">
+                      <button
+                        onClick={() => handleNavClick('/about', false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-panel transition-colors"
+                      >
+                        <Info size={15} />
+                        {t.navAbout || 'About Us'}
+                      </button>
+                      <button
+                        onClick={() => handleNavClick('/templeteams', false)}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-panel transition-colors"
+                      >
+                        <Users size={15} />
+                        {t.teamMembers || 'Team Members'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            return (
+              <button
+                key={item.key}
+                onClick={() => handleNavClick(item.key, item.protected)}
+                className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-colors ${
+                  isActive(item.key) 
+                    ? 'bg-maroon text-white' 
+                    : 'text-ink-soft hover:text-maroon hover:bg-maroon/10'
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
 
         {/* Right Actions */}
@@ -310,6 +351,19 @@ const Header = ({ onLogout, setAuthModal }) => {
             </button>
           );
         })}
+        {/* Mobile About Dropdown Items */}
+        <button
+          onClick={() => handleNavClick('/about', false)}
+          className="w-full flex items-center gap-3 px-6 py-3.5 text-sm font-semibold border-b border-line text-ink-soft pl-12"
+        >
+          <Info size={17} /> {t.navAbout || 'About Us'}
+        </button>
+        <button
+          onClick={() => handleNavClick('/templeteams', false)}
+          className="w-full flex items-center gap-3 px-6 py-3.5 text-sm font-semibold border-b border-line text-ink-soft pl-12"
+        >
+          <Users size={17} /> {t.teamMembers || 'Team Members'}
+        </button>
       </div>
     </header>
   );
