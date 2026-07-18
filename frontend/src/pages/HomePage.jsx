@@ -252,7 +252,7 @@ import api from '../services/api';
 gsap.registerPlugin(ScrollTrigger);
 
 // Local images and video from public folder
-const heroVideo = '/Hero1.mp4';
+const heroVideo = '/hero1.mp4';
 const heroImage1 = '/1.jpg';
 const heroImage2 = '/2.jpg';
 const heroImage3 = '/3.jpg';
