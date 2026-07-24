@@ -38,8 +38,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:4000',
   'http://localhost:3000',
   'http://localhost:5000',
-  'https://your-frontend-url.onrender.com',
-  'https://shree-ramchandra-temple.onrender.com',
+  'https://shree-ram-temple.onrender.com/',
+  'https://shree-ram-temple-latest-backend.onrender.com/',
 ];
 
 app.use(cors({
