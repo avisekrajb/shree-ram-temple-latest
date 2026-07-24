@@ -13,6 +13,7 @@ import TempleIcon from '../components/common/TempleIcon';
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
 
+<<<<<<< HEAD
 // Default fallback images
 const defaultHeroImage = '/1.jpg';
 const defaultGalleryImages = [
@@ -25,8 +26,17 @@ const defaultGalleryImages = [
   { id: 'g7', src: '/2.jpg', alt: { en: 'Evening Aarti', ne: 'साँझको आरती' } },
   { id: 'g8', src: '/3.jpg', alt: { en: 'Sacred Rituals', ne: 'पवित्र अनुष्ठान' } },
 ];
+=======
+// Local images and video from public folder
+const heroVideo = '/hero1.mp4';
+const heroImage1 = '/1.jpg';
+const heroImage2 = '/2.jpg';
+const heroImage3 = '/3.jpg';
+const heroImage4 = '/4.jpg';
+const heroImage5 = '/6.jpg';
+>>>>>>> 1e9d40e76286b11a3b6991021c16b58e5c638ead
 
-// ─── Fullscreen Image Modal ───────────────────────────────────────────────────
+// ─── Fullscreen Image Modal ──────────────────────────────────────────────────
 function ImageModal({ src, alt, onClose }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === "Escape") onClose(); };
