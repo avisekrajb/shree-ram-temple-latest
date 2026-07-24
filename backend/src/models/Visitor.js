@@ -1,65 +1,53 @@
 const mongoose = require('mongoose');
 
 const visitorSchema = new mongoose.Schema({
-  // Session ID for tracking unique visitors
   sessionId: {
     type: String,
     required: true,
     index: true,
   },
-  // IP Address
   ipAddress: {
     type: String,
     required: true,
   },
-  // User ID if logged in
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null,
   },
-  // User name if logged in
   userName: {
     type: String,
     default: '',
   },
-  // Page visited
   page: {
     type: String,
     required: true,
   },
-  // Page title
   pageTitle: {
     type: String,
     default: '',
   },
-  // Referrer
   referrer: {
     type: String,
     default: '',
   },
-  // User Agent
   userAgent: {
     type: String,
     default: '',
   },
-  // Device type
   deviceType: {
     type: String,
     enum: ['desktop', 'tablet', 'mobile', 'unknown'],
     default: 'unknown',
   },
-  // Browser
   browser: {
     type: String,
     default: '',
   },
-  // OS
   os: {
     type: String,
     default: '',
   },
-  // Location data
   location: {
     country: { type: String, default: '' },
     city: { type: String, default: '' },
@@ -69,32 +57,26 @@ const visitorSchema = new mongoose.Schema({
     timezone: { type: String, default: '' },
     isp: { type: String, default: '' },
   },
-  // Time spent on page (in seconds)
   timeSpent: {
     type: Number,
     default: 0,
   },
-  // Whether visitor is new or returning
   isNewVisitor: {
     type: Boolean,
     default: true,
   },
-  // Visit count for this session
   visitCount: {
     type: Number,
     default: 1,
   },
-  // Date
   date: {
     type: Date,
     default: Date.now,
   },
-  // Day (for aggregation)
   day: {
     type: String,
     default: () => new Date().toISOString().split('T')[0],
   },
-  // Month (for aggregation)
   month: {
     type: String,
     default: () => {
@@ -102,34 +84,24 @@ const visitorSchema = new mongoose.Schema({
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     },
   },
-  // Year (for aggregation)
   year: {
     type: Number,
     default: () => new Date().getFullYear(),
   },
-  // Duration (in seconds)
-  duration: {
-    type: Number,
-    default: 0,
-  },
-  // Exit page
-  exitPage: {
+  entryPage: {
     type: String,
     default: '',
   },
-  // Entry page
-  entryPage: {
+  exitPage: {
     type: String,
     default: '',
   },
 });
 
-// Indexes for faster queries
 visitorSchema.index({ sessionId: 1, date: -1 });
 visitorSchema.index({ ipAddress: 1, date: -1 });
 visitorSchema.index({ page: 1, date: -1 });
 visitorSchema.index({ day: 1 });
 visitorSchema.index({ month: 1 });
-visitorSchema.index({ year: 1 });
 
 module.exports = mongoose.model('Visitor', visitorSchema);
