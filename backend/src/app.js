@@ -47,6 +47,7 @@ const allowedOrigins = [
   'https://shree-ram-temple.onrender.com',
   'https://shree-ram-temple-latest-backend.onrender.com',
   'https://your-frontend-url.onrender.com',
+  'https://shree-ramchandra-temple.onrender.com',
 ];
 
 // CORS options
