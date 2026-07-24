@@ -6,11 +6,7 @@ import api from '../../services/api';
 import {
   Home, Info, ScrollText, CalendarDays, ImageIcon, Hand, Gift, Phone,
   Globe, User, LogOut, Menu, X, ChevronDown, MapPin, Sun, BadgeCheck,
-<<<<<<< HEAD
   CircleDot, LayoutDashboard, ClipboardList, ChevronRight, Plus, Users, BookOpen
-=======
-  CircleDot, LayoutDashboard, ClipboardList, ChevronRight, Plus, Camera, Users, BookOpen
->>>>>>> 1e9d40e76286b11a3b6991021c16b58e5c638ead
 } from 'lucide-react';
 
 const Header = ({ onLogout, setAuthModal }) => {
@@ -39,7 +35,6 @@ const Header = ({ onLogout, setAuthModal }) => {
     fetchSettings();
   }, []);
 
-<<<<<<< HEAD
   // Navigation items with proper translations - dynamic based on language
   // Using useMemo to ensure it updates when t changes
   const navItems = useMemo(() => [
@@ -53,19 +48,6 @@ const Header = ({ onLogout, setAuthModal }) => {
     { key: '/donate', label: t.navDonate || 'Donate', icon: Gift, protected: true },
     { key: '/contact', label: t.navContact || 'Contact', icon: Phone, protected: false },
   ], [t]);
-=======
-  const navItems = [
-    { key: '/', label: t.navHome, icon: Home, protected: false },
-    { key: '/about', label: t.navAbout, icon: Info, protected: false },
-    { key: '/history', label: t.navHistory, icon: ScrollText, protected: false },
-    { key: '/blogs', label: t.navBlogs || 'Blogs', icon: BookOpen, protected: false },
-    { key: '/events', label: t.navEvents, icon: CalendarDays, protected: false },
-    { key: '/gallery', label: t.navGallery, icon: ImageIcon, protected: false },
-    { key: '/booking', label: t.navBooking, icon: Hand, protected: true },
-    { key: '/donate', label: t.navDonate, icon: Gift, protected: true },
-    { key: '/contact', label: t.navContact, icon: Phone, protected: false },
-  ];
->>>>>>> 1e9d40e76286b11a3b6991021c16b58e5c638ead
 
   const languages = [
     { code: 'en', label: t.langEnglish || 'English' },
@@ -96,12 +78,9 @@ const Header = ({ onLogout, setAuthModal }) => {
   const handleNavClick = (path, isProtected) => {
     setMobileNavOpen(false);
     setAboutDropdownOpen(false);
-<<<<<<< HEAD
     setLangMenuOpen(false);
     setProfileMenuOpen(false);
     
-=======
->>>>>>> 1e9d40e76286b11a3b6991021c16b58e5c638ead
     if (isProtected && !user) {
       setAuthModal('login');
       return;
@@ -149,7 +128,6 @@ const Header = ({ onLogout, setAuthModal }) => {
   const logoWidth = logoSettings.width || 'w-auto';
 
   return (
-<<<<<<< HEAD
     <>
       <header className="rt-header" ref={headerRef}>
         <div className="w-full max-w-7xl mx-auto flex items-center justify-between px-3 sm:px-4 md:px-6 h-16 sm:h-[72px] md:h-[76px]">
@@ -161,132 +139,6 @@ const Header = ({ onLogout, setAuthModal }) => {
             <div className={`${logoSize} ${logoShape} bg-gradient-to-br ${logoBgColor} text-white flex items-center justify-center flex-shrink-0 overflow-hidden shadow-lg shadow-vermilion/20 group-hover:shadow-xl group-hover:shadow-vermilion/30 transition-all duration-300 group-hover:scale-105`}>
               {logoPhoto ? (
                 <img src={logoPhoto} alt="Logo" className="w-full h-full object-cover" />
-=======
-    <header className="rt-header" ref={headerRef}>
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4 md:px-6 h-16">
-        {/* Logo */}
-        <button 
-          onClick={() => handleNavClick('/', false)} 
-          className="flex items-center gap-2.5 bg-transparent border-0 p-0 text-left"
-        >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-vermilion to-maroon-deep text-white flex items-center justify-center flex-shrink-0 overflow-hidden">
-            {logoPhoto ? (
-              <img src={logoPhoto} alt="Logo" className="w-full h-full object-cover" />
-            ) : (
-              <Sun size={20} strokeWidth={2.2} />
-            )}
-          </div>
-          <div className="flex flex-col leading-tight">
-            <span className="font-serif font-bold text-sm md:text-base text-maroon">{logoText}</span>
-            <span className="text-[10px] md:text-[11px] text-ink-soft flex items-center gap-1">
-              <MapPin size={11} /> {t.templeSub}
-            </span>
-          </div>
-        </button>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navItems.map((item) => {
-            if (item.key === '/about') {
-              return (
-                <div key={item.key} className="relative">
-                  <button
-                    onClick={() => setAboutDropdownOpen(!aboutDropdownOpen)}
-                    className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-colors inline-flex items-center gap-1 ${
-                      isActive(item.key) || location.pathname === '/templeteams'
-                        ? 'bg-maroon text-white' 
-                        : 'text-ink-soft hover:text-maroon hover:bg-maroon/10'
-                    }`}
-                  >
-                    {item.label}
-                    <ChevronDown size={14} className={aboutDropdownOpen ? 'rotate-180' : ''} />
-                  </button>
-                  {aboutDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white border border-line rounded-xl shadow-lg min-w-[180px] p-1.5 z-50">
-                      <button
-                        onClick={() => handleNavClick('/about', false)}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-panel transition-colors"
-                      >
-                        <Info size={15} />
-                        {t.navAbout || 'About Us'}
-                      </button>
-                      <button
-                        onClick={() => handleNavClick('/templeteams', false)}
-                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium hover:bg-panel transition-colors"
-                      >
-                        <Users size={15} />
-                        {t.teamMembers || 'Team Members'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <button
-                key={item.key}
-                onClick={() => handleNavClick(item.key, item.protected)}
-                className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-colors ${
-                  isActive(item.key) 
-                    ? 'bg-maroon text-white' 
-                    : 'text-ink-soft hover:text-maroon hover:bg-maroon/10'
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Right Actions */}
-        <div className="flex items-center gap-2">
-          {/* Language Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setLangMenuOpen(!langMenuOpen)}
-              className="flex items-center gap-1.5 bg-white border border-line rounded-full px-3 py-2 text-sm hover:border-vermilion transition-colors"
-            >
-              <Globe size={16} />
-              <span className="font-bold text-xs hidden sm:inline">{lang.toUpperCase()}</span>
-              <ChevronDown size={12} />
-            </button>
-            {langMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 bg-white border border-line rounded-xl shadow-lg min-w-[180px] p-1.5 z-50">
-                {languages.map((l) => (
-                  <button
-                    key={l.code}
-                    onClick={() => handleLangSelect(l.code)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium hover:bg-panel ${
-                      lang === l.code ? 'text-vermilion font-bold' : 'text-ink'
-                    }`}
-                  >
-                    {l.label}
-                    {lang === l.code && <span className="text-vermilion">✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Profile */}
-          <div className="relative">
-            <button
-              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-              className={`flex items-center justify-center w-9 h-9 rounded-full border ${
-                user ? 'bg-maroon text-white border-maroon' : 'bg-white border-line'
-              } transition-colors overflow-hidden`}
-            >
-              {user ? (
-                userProfilePhoto ? (
-                  <img 
-                    src={userProfilePhoto} 
-                    alt={user.name} 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-sm font-bold">{user.name?.charAt(0).toUpperCase()}</span>
-                )
->>>>>>> 1e9d40e76286b11a3b6991021c16b58e5c638ead
               ) : (
                 <Sun size={24} strokeWidth={2.2} className="text-white/90" />
               )}
@@ -519,7 +371,6 @@ const Header = ({ onLogout, setAuthModal }) => {
             >
               {mobileNavOpen ? <X size={18} className="text-ink" /> : <Menu size={18} className="text-ink" />}
             </button>
-<<<<<<< HEAD
           </div>
         </div>
 
@@ -621,25 +472,6 @@ const Header = ({ onLogout, setAuthModal }) => {
         </div>
       )}
     </>
-=======
-          );
-        })}
-        {/* Mobile About Dropdown Items */}
-        <button
-          onClick={() => handleNavClick('/about', false)}
-          className="w-full flex items-center gap-3 px-6 py-3.5 text-sm font-semibold border-b border-line text-ink-soft pl-12"
-        >
-          <Info size={17} /> {t.navAbout || 'About Us'}
-        </button>
-        <button
-          onClick={() => handleNavClick('/templeteams', false)}
-          className="w-full flex items-center gap-3 px-6 py-3.5 text-sm font-semibold border-b border-line text-ink-soft pl-12"
-        >
-          <Users size={17} /> {t.teamMembers || 'Team Members'}
-        </button>
-      </div>
-    </header>
->>>>>>> 1e9d40e76286b11a3b6991021c16b58e5c638ead
   );
 };
 
