@@ -37,7 +37,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // ============================================
-// CORS CONFIGURATION
+// CORS CONFIGURATION - FIXED
 // ============================================
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:4000',
@@ -48,19 +48,29 @@ const allowedOrigins = [
   'https://shree-ram-temple-latest-backend.onrender.com',
   'https://your-frontend-url.onrender.com',
   'https://shree-ramchandra-temple.onrender.com',
+  'https://ramchandramandir.onrender.com',
+  'https://ramchandratemple.onrender.com',
 ];
 
-// CORS options
+// CORS options - Allow all origins in development
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
     
-    // Check if origin is allowed
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // In production, check against allowed origins
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.warn(`⚠️ CORS blocked origin: ${origin}`);
+      console.warn(`⚠️ Allowed origins: ${allowedOrigins.join(', ')}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -96,6 +106,7 @@ if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     console.log(`📝 ${req.method} ${req.url}`);
     console.log(`📍 Origin: ${req.headers.origin || 'unknown'}`);
+    console.log(`📍 User-Agent: ${req.headers['user-agent'] || 'unknown'}`);
     next();
   });
 } else {
@@ -106,6 +117,7 @@ if (process.env.NODE_ENV !== 'production') {
       const duration = Date.now() - start;
       if (res.statusCode >= 400) {
         console.error(`❌ ${req.method} ${req.url} ${res.statusCode} ${duration}ms`);
+        console.error(`📍 Origin: ${req.headers.origin || 'unknown'}`);
       }
     });
     next();
