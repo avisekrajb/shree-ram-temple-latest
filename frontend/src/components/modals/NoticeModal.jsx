@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ArrowRight, QrCode, Phone, MapPin, Heart } from 'lucide-react';
+import { X, ArrowRight, QrCode, Phone, MapPin, Heart, Globe } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
@@ -10,12 +10,22 @@ import api from '../../services/api';
 const STORAGE_KEY = 'rcmt:notice-dismissed';
 
 const NoticeModal = () => {
-  const { t, lang } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [displayLang, setDisplayLang] = useState('ne');
+  const [displayLang, setDisplayLang] = useState('en');
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+
+  // Language options
+  const languages = [
+    { code: 'en', label: 'English' },
+    { code: 'ne', label: 'नेपाली' },
+    { code: 'hi', label: 'हिन्दी' },
+    { code: 'zh', label: '中文' },
+    { code: 'ta', label: 'தமிழ்' },
+  ];
 
   // Fetch settings on mount
   useEffect(() => {
@@ -133,32 +143,40 @@ const NoticeModal = () => {
     // Show if not dismissed AND enabled
     if (!dismissed && isNoticeEnabled) {
       setOpen(true);
-      setDisplayLang('ne');
+      // Default to English
+      setDisplayLang('en');
     }
   }, [loading, settings]);
 
-  // Update language when user changes
+  // Update language when user changes (from app context)
   useEffect(() => {
     if (open) {
       const supportedLangs = ['en', 'ne', 'hi', 'zh', 'ta'];
       if (supportedLangs.includes(lang)) {
         setDisplayLang(lang);
       } else {
-        setDisplayLang('ne');
+        setDisplayLang('en');
       }
     }
   }, [lang, open]);
 
   const handleClose = () => {
     setOpen(false);
+    setLangMenuOpen(false);
     // Store in sessionStorage - only for this browser session/tab
-    // This means modal will show again on next browser session
     sessionStorage.setItem(STORAGE_KEY, '1');
   };
 
   const handleDonateClick = () => {
     handleClose();
     navigate('/donate');
+  };
+
+  const handleLangSelect = (code) => {
+    setDisplayLang(code);
+    setLangMenuOpen(false);
+    // Also update the global language context
+    setLang(code);
   };
 
   const notice = settings?.notice || {};
@@ -168,7 +186,6 @@ const NoticeModal = () => {
     if (!obj) return '';
     if (typeof obj === 'string') return obj;
     if (obj[displayLang]) return obj[displayLang];
-    if (obj.ne) return obj.ne;
     if (obj.en) return obj.en;
     const keys = Object.keys(obj);
     return keys.length > 0 ? obj[keys[0]] : '';
@@ -180,6 +197,9 @@ const NoticeModal = () => {
 
   // Don't show if not open
   if (!open) return null;
+
+  // Get current language label
+  const currentLangLabel = languages.find(l => l.code === displayLang)?.label || 'English';
 
   return (
     <AnimatePresence>
@@ -214,6 +234,39 @@ const NoticeModal = () => {
               <X className="w-4 h-4 text-gray-700" />
             </button>
 
+            {/* Language Dropdown - Top Right */}
+            <div className="absolute top-3 right-12 z-10">
+              <div className="relative">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLangMenuOpen(!langMenuOpen);
+                  }}
+                  className="flex items-center gap-1.5 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full px-3 py-1.5 text-xs font-medium hover:border-vermilion transition-all duration-200 shadow-sm"
+                >
+                  <Globe size={14} className="text-ink-soft" />
+                  <span className="font-bold text-ink">{displayLang.toUpperCase()}</span>
+                  <span className="text-ink-soft text-[10px]">▾</span>
+                </button>
+                {langMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[160px] p-1.5 z-50 animate-fadeIn">
+                    {languages.map((l) => (
+                      <button
+                        key={l.code}
+                        onClick={() => handleLangSelect(l.code)}
+                        className={`w-full flex items-center justify-between px-3.5 py-2 rounded-lg text-xs font-medium hover:bg-panel transition-colors duration-200 ${
+                          displayLang === l.code ? 'text-vermilion font-bold bg-vermilion/5' : 'text-ink'
+                        }`}
+                      >
+                        {l.label}
+                        {displayLang === l.code && <span className="text-vermilion text-[10px]">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Top decorative border */}
             <div className="h-1.5 w-full bg-gradient-to-r from-red-800 via-amber-600 to-red-800 rounded-t-2xl" />
 
@@ -234,7 +287,7 @@ const NoticeModal = () => {
                 style={bodyFont}
                 className="text-center text-2xl sm:text-3xl font-bold text-red-900 mb-4"
               >
-                {getText(notice.title) || 'हार्दिक अनुरोध'}
+                {getText(notice.title) || 'Heartfelt Request'}
               </h2>
 
               {/* Banner */}
@@ -243,7 +296,7 @@ const NoticeModal = () => {
                   style={bodyFont}
                   className="text-center text-white text-lg sm:text-xl font-bold leading-relaxed"
                 >
-                  {getText(notice.banner) || "'लिफ्ट' राख्ने कार्यमा सहभागी बनौं ।"}
+                  {getText(notice.banner) || "Let's participate in installing the 'Lift'."}
                 </p>
               </div>
 
@@ -271,7 +324,7 @@ const NoticeModal = () => {
                     style={bodyFont}
                     className="text-gray-800 text-sm sm:text-base leading-relaxed mb-4"
                   >
-                    {getText(notice.body) || 'भगवान् श्रीरामचन्द्रको मन्दिरमा वृद्ध-वृद्धा एवं विकलाङ्गहरूलाई दर्शन एवं आउ-जाउ गर्न सजिलो होस् भनी मन्दिरको ठिक पूर्वपट्टि ८ जनासम्म अटाउने लिफ्टको स्थापना ६ महीनाभित्र सक्ने गरी कार्य अगाडि बढिरहेको सन्दर्भमा यहाँहरूको सहयोगको अपेक्षासाथ यो सूचना जनसमक्ष जारी गरिएको छ ।'}
+                    {getText(notice.body) || 'To make it easier for the elderly and differently-abled to visit and move around at the Shree Ramchandra Temple, we are installing a lift on the eastern side of the temple that can accommodate up to 8 people. The work is expected to be completed within 6 months.'}
                   </p>
 
                   {/* Cost highlight */}
@@ -280,7 +333,7 @@ const NoticeModal = () => {
                       style={bodyFont}
                       className="text-gray-800 text-sm sm:text-base font-semibold"
                     >
-                      {getText(notice.cost) || 'लिफ्टसहितको संरचनाको लागि करिब रु. ५५,००,०००/- (पचपन्न लाख) पर्ने अनुमान गरिएको छ ।'}
+                      {getText(notice.cost) || 'The estimated cost for the lift structure is approximately Rs. 55,00,000/- (Fifty-five lakh).'}
                     </p>
                   </div>
 
@@ -288,7 +341,7 @@ const NoticeModal = () => {
                     style={bodyFont}
                     className="text-gray-800 text-sm sm:text-base leading-relaxed"
                   >
-                    {getText(notice.donors) || 'यस कार्यमा रु. १५,०००/- (पन्ध्र हजार) देखि माथि सहयोग गर्ने उदारमना दाताहरूको नाम लिफ्टको प्रवेशद्वारको वायाँपट्टि आकर्षक रूपले शिलापत्रमा उत्कीर्ण गरी राखिने जानकारी गराउँदछौं ।'}
+                    {getText(notice.donors) || 'The names of generous donors contributing Rs. 15,000/- (Fifteen thousand) and above will be prominently engraved on a stone plaque on the left side of the lift entrance.'}
                   </p>
                 </div>
 
@@ -334,7 +387,7 @@ const NoticeModal = () => {
                         </div>
                       </div>
                       <p className="text-white/80 text-xs mt-2 font-medium">
-                        {getText(notice.qrLabel) || 'क्यू आर कोड'}
+                        {getText(notice.qrLabel) || 'QR Code'}
                       </p>
                     </div>
                   </div>
@@ -342,18 +395,18 @@ const NoticeModal = () => {
                   {/* Contact info */}
                   <div className="flex-1 p-4 sm:p-5 flex flex-col justify-center">
                     <p className="text-amber-300 text-sm font-bold mb-2" style={bodyFont}>
-                      {getText(notice.applicant) || 'प्रार्थी'}
+                      {getText(notice.applicant) || 'Applicant'}
                     </p>
                     <p className="text-white text-sm sm:text-base font-bold leading-snug mb-1" style={bodyFont}>
-                      {getText(notice.committee) || 'श्रीरामचन्द्रमन्दिर जीर्णोद्धार एवं संवर्द्धन समिति'}
+                      {getText(notice.committee) || 'Shree Ramchandra Temple Renovation & Development Committee'}
                     </p>
                     <p className="text-white/80 text-sm mb-3 flex items-center gap-1.5" style={bodyFont}>
                       <MapPin size={14} className="text-amber-300" />
-                      {getText(notice.location) || 'बत्तीसपुतली, काठमाडौं, नेपाल'}
+                      {getText(notice.location) || 'Battisputali, Kathmandu, Nepal'}
                     </p>
                     <p className="text-white/90 text-sm flex items-center gap-1.5" style={bodyFont}>
                       <Phone size={14} className="text-amber-300" />
-                      {getText(notice.contactNo) || 'सम्पर्क नं.'}: {getText(notice.contactDetails) || '01-4598526, 9851154432'}
+                      {getText(notice.contactNo) || 'Contact No.'}: {getText(notice.contactDetails) || '01-4598526, 9851154432'}
                     </p>
                   </div>
                 </div>
@@ -370,18 +423,28 @@ const NoticeModal = () => {
                   }}
                 >
                   <Heart size={18} />
-                  {getText(notice.donateBtn) || 'सहयोग गर्नुहोस्'}
+                  {getText(notice.donateBtn) || 'Donate Now'}
                   <ArrowRight size={18} />
                 </button>
               </div>
 
-              {/* Language hint */}
+              {/* Language hint - Show current language */}
               <p className="text-center text-[10px] text-ink-soft/50 mt-3">
                 {displayLang === 'ne' ? 'नेपालीमा देखाइएको' :
                  displayLang === 'hi' ? 'हिन्दी में दिखाया गया' :
                  displayLang === 'zh' ? '以中文显示' :
                  displayLang === 'ta' ? 'தமிழில் காட்டப்பட்டது' :
-                 'Displayed in English'}
+                 'Displayed in English'} 
+                {' • '}
+                <span 
+                  className="cursor-pointer hover:text-vermilion transition-colors underline decoration-dotted"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLangMenuOpen(!langMenuOpen);
+                  }}
+                >
+                  {t.changeLanguage || 'Change Language'}
+                </span>
               </p>
             </div>
 

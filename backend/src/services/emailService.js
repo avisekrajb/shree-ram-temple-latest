@@ -12,7 +12,7 @@ const createTransporter = () => {
     return null;
   }
 
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
@@ -34,9 +34,10 @@ let transporter = null;
  * @param {string} options.subject - Email subject
  * @param {string} options.html - HTML content
  * @param {string} options.text - Plain text content (optional)
+ * @param {Array} options.attachments - Attachments (optional)
  * @returns {Promise<Object>} Nodemailer response
  */
-const sendEmail = async ({ to, subject, html, text }) => {
+const sendEmail = async ({ to, subject, html, text, attachments = [] }) => {
   try {
     // Check if email is configured
     if (!isEmailConfigured()) {
@@ -66,17 +67,543 @@ const sendEmail = async ({ to, subject, html, text }) => {
       text: text || html?.replace(/<[^>]*>/g, '') || '',
     };
 
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      mailOptions.attachments = attachments;
+    }
+
     const info = await transporter.sendMail(mailOptions);
     console.log(`✅ Email sent to ${to}: ${info.messageId}`);
     return info;
   } catch (error) {
     console.error('❌ Email sending error:', error.message);
-    // Don't throw - just log the error
     return { 
       error: error.message,
       message: 'Email sending failed but operation continues',
     };
   }
+};
+
+/**
+ * Send OTP email for password reset
+ * @param {Object} user - User object
+ * @param {string} otp - OTP code
+ * @returns {Promise<Object>} Nodemailer response
+ */
+const sendOtpEmail = async (user, otp) => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Password Reset OTP</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #1a1a2e;
+          max-width: 500px;
+          margin: 0 auto;
+          padding: 20px;
+          background: #fafafa;
+        }
+        .container {
+          background: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+          background: linear-gradient(135deg, #7A1F2B 0%, #5B1420 100%);
+          color: white;
+          padding: 25px 20px;
+          text-align: center;
+        }
+        .header h2 {
+          margin: 0;
+          font-size: 22px;
+          font-weight: 700;
+        }
+        .content {
+          padding: 25px;
+        }
+        .otp-code {
+          font-size: 36px;
+          font-weight: bold;
+          color: #7A1F2B;
+          text-align: center;
+          padding: 15px;
+          background: #f5f0ed;
+          border-radius: 10px;
+          letter-spacing: 10px;
+          margin: 15px 0;
+        }
+        .warning {
+          background: #FEF3C7;
+          padding: 10px 14px;
+          border-radius: 8px;
+          border-left: 4px solid #F59E0B;
+          font-size: 13px;
+          color: #92400E;
+        }
+        .footer {
+          text-align: center;
+          padding: 15px;
+          border-top: 1px solid #e8e4e0;
+          font-size: 12px;
+          color: #8a8a9a;
+          background: #fafafa;
+        }
+        .temple-name {
+          font-weight: 600;
+          color: #7A1F2B;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h2>🔐 Password Reset OTP</h2>
+        </div>
+        <div class="content">
+          <p>Dear <strong>${user.name}</strong>,</p>
+          <p>You requested to reset your password. Use the following OTP to verify your identity:</p>
+          <div class="otp-code">${otp}</div>
+          <div class="warning">
+            ⚠️ This OTP is valid for <strong>10 minutes</strong>.
+          </div>
+          <p style="font-size: 14px; color: #6b6b7a;">If you didn't request this, please ignore this email.</p>
+          <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
+        </div>
+        <div class="footer">
+          <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
+          <p style="margin: 4px 0 0;">Gaushala, Kathmandu, Nepal</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: user.email,
+    subject: '🔐 Password Reset OTP - Shree Ramchandra Temple',
+    html,
+  });
+};
+
+/**
+ * Send password reset email (with link)
+ * @param {Object} user - User object
+ * @param {string} resetToken - Reset token
+ * @param {string} frontendUrl - Frontend URL
+ * @returns {Promise<Object>} Nodemailer response
+ */
+const sendPasswordResetEmail = async (user, resetToken, frontendUrl) => {
+  const resetUrl = `${frontendUrl || process.env.FRONTEND_URL || 'http://localhost:4000'}/reset-password/${resetToken}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Password Reset</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #1a1a2e;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background: #fafafa;
+        }
+        .container {
+          background: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+          background: linear-gradient(135deg, #7A1F2B 0%, #5B1420 100%);
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 700;
+        }
+        .content {
+          padding: 30px 25px;
+        }
+        .greeting {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1a1a2e;
+          margin-bottom: 12px;
+        }
+        .btn {
+          display: inline-block;
+          padding: 12px 30px;
+          background: #7A1F2B;
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          margin: 15px 0;
+        }
+        .btn:hover {
+          background: #5B1420;
+        }
+        .warning {
+          background: #FEF3C7;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin: 12px 0;
+          border-left: 4px solid #F59E0B;
+        }
+        .warning p {
+          margin: 0;
+          font-size: 14px;
+          color: #92400E;
+        }
+        .footer {
+          text-align: center;
+          padding: 20px;
+          border-top: 1px solid #e8e4e0;
+          font-size: 13px;
+          color: #8a8a9a;
+          background: #fafafa;
+        }
+        .footer .temple-name {
+          font-weight: 600;
+          color: #7A1F2B;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🔐 Password Reset Request</h1>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear <strong>${user.name}</strong>,</p>
+          <p>You requested to reset your password for your Shree Ramchandra Temple account.</p>
+          <p>Click the button below to reset your password:</p>
+          <div style="text-align: center;">
+            <a href="${resetUrl}" class="btn">Reset Password</a>
+          </div>
+          <div class="warning">
+            <p>⚠️ <strong>This link expires in 30 minutes.</strong></p>
+          </div>
+          <p style="font-size: 14px; color: #6b6b7a;">If you didn't request this, please ignore this email and your password will remain unchanged.</p>
+          <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
+        </div>
+        <div class="footer">
+          <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
+          <p style="margin: 4px 0 0;">Gaushala, Kathmandu, Nepal</p>
+          <p style="margin: 10px 0 0; font-size: 11px; color: #aaa;">This is an automated email. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: user.email,
+    subject: '🔐 Password Reset Request - Shree Ramchandra Temple',
+    html,
+  });
+};
+
+/**
+ * Send welcome email to new user
+ * @param {Object} user - User object
+ * @param {string} password - Temporary password (optional)
+ * @returns {Promise<Object>} Nodemailer response
+ */
+const sendWelcomeEmail = async (user, password = null) => {
+  const passwordSection = password ? `
+    <div class="details">
+      <h3>🔑 Temporary Password</h3>
+      <div class="details-row">
+        <span class="label">Password</span>
+        <span class="value" style="font-family: monospace; font-size: 16px; background: #f0ede8; padding: 2px 10px; border-radius: 4px;">${password}</span>
+      </div>
+      <p style="font-size: 13px; color: #6b6b7a; margin-top: 8px;">Please change your password after logging in.</p>
+    </div>
+  ` : '';
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to Shree Ramchandra Temple</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #1a1a2e;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background: #fafafa;
+        }
+        .container {
+          background: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+          background: linear-gradient(135deg, #7A1F2B 0%, #5B1420 100%);
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 700;
+        }
+        .content {
+          padding: 30px 25px;
+        }
+        .greeting {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1a1a2e;
+          margin-bottom: 12px;
+        }
+        .details {
+          background: #f8f5f3;
+          padding: 18px 20px;
+          border-radius: 12px;
+          margin: 18px 0;
+          border-left: 4px solid #7A1F2B;
+        }
+        .details h3 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          color: #7A1F2B;
+        }
+        .details-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 0;
+          border-bottom: 1px solid #e8e4e0;
+          font-size: 14px;
+        }
+        .details-row:last-child {
+          border-bottom: none;
+        }
+        .details-row .label {
+          color: #6b6b7a;
+          font-weight: 500;
+        }
+        .details-row .value {
+          font-weight: 600;
+          color: #1a1a2e;
+        }
+        .footer {
+          text-align: center;
+          padding: 20px;
+          border-top: 1px solid #e8e4e0;
+          font-size: 13px;
+          color: #8a8a9a;
+          background: #fafafa;
+        }
+        .footer .temple-name {
+          font-weight: 600;
+          color: #7A1F2B;
+        }
+        .btn {
+          display: inline-block;
+          padding: 10px 24px;
+          background: #7A1F2B;
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          margin-top: 10px;
+        }
+        .btn:hover {
+          background: #5B1420;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <span style="font-size: 32px; display: block; margin-bottom: 8px;">🕉</span>
+          <h1>Welcome to Shree Ramchandra Temple</h1>
+          <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">Gaushala, Kathmandu</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear <strong>${user.name}</strong>,</p>
+          <p>Welcome to the Shree Ramchandra Temple community!</p>
+          <p>We are delighted to have you as a member of our temple family. Through your account, you can:</p>
+          <ul style="color: #4a4a5a;">
+            <li>📅 Book pujas online</li>
+            <li>🙏 Make donations</li>
+            <li>📋 View your booking history</li>
+            <li>📸 Explore our gallery</li>
+          </ul>
+          
+          ${passwordSection}
+
+          <div style="text-align: center; margin-top: 20px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4000'}" class="btn">Visit Temple Website</a>
+          </div>
+          <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
+        </div>
+        <div class="footer">
+          <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
+          <p style="margin: 4px 0 0;">Gaushala, Kathmandu, Nepal</p>
+          <p style="margin: 10px 0 0; font-size: 11px; color: #aaa;">This is an automated email. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: user.email,
+    subject: '🕉 Welcome to Shree Ramchandra Temple',
+    html,
+  });
+};
+
+/**
+ * Send Google login welcome email
+ * @param {Object} user - User object
+ * @returns {Promise<Object>} Nodemailer response
+ */
+const sendGoogleWelcomeEmail = async (user) => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to Shree Ramchandra Temple</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #1a1a2e;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background: #fafafa;
+        }
+        .container {
+          background: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+          background: linear-gradient(135deg, #7A1F2B 0%, #5B1420 100%);
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 700;
+        }
+        .content {
+          padding: 30px 25px;
+        }
+        .greeting {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1a1a2e;
+          margin-bottom: 12px;
+        }
+        .google-badge {
+          display: inline-block;
+          background: #f1f3f4;
+          padding: 6px 16px;
+          border-radius: 20px;
+          font-size: 12px;
+          color: #5f6368;
+          margin: 6px 0 12px 0;
+        }
+        .footer {
+          text-align: center;
+          padding: 20px;
+          border-top: 1px solid #e8e4e0;
+          font-size: 13px;
+          color: #8a8a9a;
+          background: #fafafa;
+        }
+        .footer .temple-name {
+          font-weight: 600;
+          color: #7A1F2B;
+        }
+        .btn {
+          display: inline-block;
+          padding: 10px 24px;
+          background: #7A1F2B;
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          margin-top: 10px;
+        }
+        .btn:hover {
+          background: #5B1420;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <span style="font-size: 32px; display: block; margin-bottom: 8px;">🕉</span>
+          <h1>Welcome to Shree Ramchandra Temple</h1>
+          <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">Gaushala, Kathmandu</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear <strong>${user.name}</strong>,</p>
+          <div class="google-badge">🔑 Signed in with Google</div>
+          <p>Welcome to the Shree Ramchandra Temple community!</p>
+          <p>You've successfully signed in using your Google account. We're delighted to have you as a member of our temple family.</p>
+          <p>Through your account, you can:</p>
+          <ul style="color: #4a4a5a;">
+            <li>📅 Book pujas online</li>
+            <li>🙏 Make donations</li>
+            <li>📋 View your booking history</li>
+            <li>📸 Explore our gallery</li>
+          </ul>
+
+          <div style="text-align: center; margin-top: 20px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4000'}" class="btn">Visit Temple Website</a>
+          </div>
+          <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
+        </div>
+        <div class="footer">
+          <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
+          <p style="margin: 4px 0 0;">Gaushala, Kathmandu, Nepal</p>
+          <p style="margin: 10px 0 0; font-size: 11px; color: #aaa;">This is an automated email. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: user.email,
+    subject: '🕉 Welcome to Shree Ramchandra Temple',
+    html,
+  });
 };
 
 /**
@@ -327,6 +854,36 @@ const sendDonationConfirmation = async (donation, user) => {
           color: #1a1a2e;
           margin-bottom: 12px;
         }
+        .details {
+          background: #f8f5f3;
+          padding: 18px 20px;
+          border-radius: 12px;
+          margin: 18px 0;
+          border-left: 4px solid #1F4E3D;
+        }
+        .details h3 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          color: #1F4E3D;
+        }
+        .details-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 0;
+          border-bottom: 1px solid #e8e4e0;
+          font-size: 14px;
+        }
+        .details-row:last-child {
+          border-bottom: none;
+        }
+        .details-row .label {
+          color: #6b6b7a;
+          font-weight: 500;
+        }
+        .details-row .value {
+          font-weight: 600;
+          color: #1a1a2e;
+        }
         .footer {
           text-align: center;
           padding: 20px;
@@ -349,10 +906,35 @@ const sendDonationConfirmation = async (donation, user) => {
         </div>
         <div class="content">
           <p class="greeting">Dear <strong>${user.name}</strong>,</p>
-          <p>Thank you for your generous donation to <strong>Shree Ramchandra Temple</strong>.</p>
+          <p>Thank you for your generous donation of <strong>Rs. ${donation.amount?.toLocaleString() || 0}</strong> to <strong>Shree Ramchandra Temple</strong>.</p>
           <p>Your contribution helps preserve this sacred place for generations to come and supports the temple's community services.</p>
+          
+          <div class="details">
+            <h3>📋 Donation Details</h3>
+            <div class="details-row">
+              <span class="label">Amount</span>
+              <span class="value">Rs. ${donation.amount?.toLocaleString() || 0}</span>
+            </div>
+            <div class="details-row">
+              <span class="label">Payment Method</span>
+              <span class="value">${donation.paymentMethod || 'Cash'}</span>
+            </div>
+            <div class="details-row">
+              <span class="label">Date</span>
+              <span class="value">${new Date(donation.date).toLocaleDateString()}</span>
+            </div>
+            <div class="details-row">
+              <span class="label">Donation ID</span>
+              <span class="value" style="font-size: 12px; font-family: monospace;">${donation._id}</span>
+            </div>
+          </div>
+
           <p style="font-size: 16px; color: #1F4E3D; font-weight: 600; margin-top: 16px;">May Lord Ram bless you with peace, prosperity, and happiness.</p>
           <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
+          
+          <div style="text-align: center; margin-top: 20px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4000'}" class="btn">Visit Temple Website</a>
+          </div>
         </div>
         <div class="footer">
           <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
@@ -372,22 +954,20 @@ const sendDonationConfirmation = async (donation, user) => {
 };
 
 /**
- * Send password reset email
+ * Send donation confirmation email with PDF attachment
+ * @param {Object} donation - Donation object
  * @param {Object} user - User object
- * @param {string} resetToken - Reset token
- * @param {string} frontendUrl - Frontend URL
+ * @param {Buffer} pdfBuffer - PDF buffer
  * @returns {Promise<Object>} Nodemailer response
  */
-const sendPasswordResetEmail = async (user, resetToken, frontendUrl) => {
-  const resetUrl = `${frontendUrl || process.env.FRONTEND_URL || 'http://localhost:4000'}/reset-password/${resetToken}`;
-
+const sendDonationConfirmationWithPDF = async (donation, user, pdfBuffer) => {
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Password Reset</title>
+      <title>Donation Confirmation</title>
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -405,7 +985,7 @@ const sendPasswordResetEmail = async (user, resetToken, frontendUrl) => {
           box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
         .header {
-          background: linear-gradient(135deg, #7A1F2B 0%, #5B1420 100%);
+          background: linear-gradient(135deg, #1F4E3D 0%, #16382C 100%);
           color: white;
           padding: 30px 20px;
           text-align: center;
@@ -424,30 +1004,238 @@ const sendPasswordResetEmail = async (user, resetToken, frontendUrl) => {
           color: #1a1a2e;
           margin-bottom: 12px;
         }
+        .details {
+          background: #f8f5f3;
+          padding: 18px 20px;
+          border-radius: 12px;
+          margin: 18px 0;
+          border-left: 4px solid #1F4E3D;
+        }
+        .details h3 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          color: #1F4E3D;
+        }
+        .details-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 0;
+          border-bottom: 1px solid #e8e4e0;
+          font-size: 14px;
+        }
+        .details-row:last-child {
+          border-bottom: none;
+        }
+        .details-row .label {
+          color: #6b6b7a;
+          font-weight: 500;
+        }
+        .details-row .value {
+          font-weight: 600;
+          color: #1a1a2e;
+        }
+        .pdf-note {
+          background: #f0f7f4;
+          padding: 12px 16px;
+          border-radius: 8px;
+          margin: 12px 0;
+          border-left: 4px solid #1F4E3D;
+          font-size: 13px;
+          color: #2d5a47;
+        }
+        .footer {
+          text-align: center;
+          padding: 20px;
+          border-top: 1px solid #e8e4e0;
+          font-size: 13px;
+          color: #8a8a9a;
+          background: #fafafa;
+        }
+        .footer .temple-name {
+          font-weight: 600;
+          color: #1F4E3D;
+        }
         .btn {
           display: inline-block;
-          padding: 12px 30px;
-          background: #7A1F2B;
+          padding: 10px 24px;
+          background: #1F4E3D;
           color: white;
           text-decoration: none;
           border-radius: 8px;
           font-weight: 600;
-          margin: 15px 0;
+          margin-top: 10px;
         }
         .btn:hover {
-          background: #5B1420;
+          background: #16382C;
         }
-        .warning {
-          background: #FEF3C7;
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🙏 Donation Confirmation</h1>
+          <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">Thank you for your generosity</p>
+        </div>
+        <div class="content">
+          <p class="greeting">Dear <strong>${user.name}</strong>,</p>
+          <p>Thank you for your generous donation of <strong>Rs. ${donation.amount?.toLocaleString() || 0}</strong> to <strong>Shree Ramchandra Temple</strong>.</p>
+          <p>Your contribution helps preserve this sacred place for generations to come and supports the temple's community services.</p>
+          
+          <div class="details">
+            <h3>📋 Donation Details</h3>
+            <div class="details-row">
+              <span class="label">Amount</span>
+              <span class="value">Rs. ${donation.amount?.toLocaleString() || 0}</span>
+            </div>
+            <div class="details-row">
+              <span class="label">Payment Method</span>
+              <span class="value">${donation.paymentMethod || 'Cash'}</span>
+            </div>
+            <div class="details-row">
+              <span class="label">Date</span>
+              <span class="value">${new Date(donation.date).toLocaleDateString()}</span>
+            </div>
+            <div class="details-row">
+              <span class="label">Donation ID</span>
+              <span class="value" style="font-size: 12px; font-family: monospace;">${donation._id}</span>
+            </div>
+          </div>
+
+          <div class="pdf-note">
+            📄 <strong>Attached:</strong> Your official donation receipt (PDF) is attached to this email. Please save it for your records.
+          </div>
+
+          <p style="font-size: 16px; color: #1F4E3D; font-weight: 600; margin-top: 16px;">May Lord Ram bless you with peace, prosperity, and happiness.</p>
+          <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
+          
+          <div style="text-align: center; margin-top: 20px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4000'}" class="btn">Visit Temple Website</a>
+          </div>
+        </div>
+        <div class="footer">
+          <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
+          <p style="margin: 4px 0 0;">Gaushala, Kathmandu, Nepal</p>
+          <p style="margin: 10px 0 0; font-size: 11px; color: #aaa;">This is an automated email. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  // Create attachments array with PDF
+  const attachments = [];
+  if (pdfBuffer) {
+    attachments.push({
+      filename: `Donation_Receipt_${donation._id.slice(-6)}.pdf`,
+      content: pdfBuffer,
+      contentType: 'application/pdf',
+    });
+  }
+
+  return sendEmail({
+    to: user.email,
+    subject: '🙏 Donation Confirmation & Receipt - Shree Ramchandra Temple',
+    html,
+    attachments,
+  });
+};
+
+/**
+ * Send team member welcome email
+ * @param {Object} teamMember - Team member object
+ * @returns {Promise<Object>} Nodemailer response
+ */
+const sendTeamWelcomeEmail = async (teamMember) => {
+  const nameText = teamMember.name?.en || 'Team Member';
+  const roleText = teamMember.role?.en || 'Member';
+  const bioText = teamMember.bio?.en || '';
+  
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to Shree Ramchandra Temple Team</title>
+      <style>
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #1a1a2e;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background: #faf8f5;
+        }
+        .container {
+          background: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .header {
+          background: linear-gradient(135deg, #7A1F2B 0%, #5B1420 100%);
+          color: white;
+          padding: 30px 20px;
+          text-align: center;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 24px;
+          font-weight: 700;
+        }
+        .header .om {
+          font-size: 32px;
+          display: block;
+          margin-bottom: 8px;
+        }
+        .content {
+          padding: 30px 25px;
+        }
+        .content .greeting {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1a1a2e;
+          margin-bottom: 12px;
+        }
+        .details {
+          background: #f8f5f3;
+          padding: 18px 20px;
+          border-radius: 12px;
+          margin: 18px 0;
+          border-left: 4px solid #7A1F2B;
+        }
+        .details h3 {
+          margin: 0 0 10px 0;
+          font-size: 16px;
+          color: #7A1F2B;
+        }
+        .details-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 0;
+          border-bottom: 1px solid #e8e4e0;
+          font-size: 14px;
+        }
+        .details-row:last-child {
+          border-bottom: none;
+        }
+        .details-row .label {
+          color: #6b6b7a;
+          font-weight: 500;
+        }
+        .details-row .value {
+          font-weight: 600;
+          color: #1a1a2e;
+        }
+        .bio-section {
+          background: #f0ede8;
           padding: 12px 16px;
           border-radius: 8px;
-          margin: 12px 0;
-          border-left: 4px solid #F59E0B;
-        }
-        .warning p {
-          margin: 0;
+          margin: 10px 0;
           font-size: 14px;
-          color: #92400E;
+          color: #4a4a5a;
+          font-style: italic;
         }
         .footer {
           text-align: center;
@@ -461,29 +1249,63 @@ const sendPasswordResetEmail = async (user, resetToken, frontendUrl) => {
           font-weight: 600;
           color: #7A1F2B;
         }
+        .btn {
+          display: inline-block;
+          padding: 10px 24px;
+          background: #7A1F2B;
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          margin-top: 10px;
+        }
+        .btn:hover {
+          background: #5B1420;
+        }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🔐 Password Reset Request</h1>
+          <span class="om">🕉</span>
+          <h1>Welcome to the Temple Team</h1>
+          <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">Shree Ramchandra Temple, Gaushala</p>
         </div>
         <div class="content">
-          <p class="greeting">Dear <strong>${user.name}</strong>,</p>
-          <p>You requested to reset your password for your Shree Ramchandra Temple account.</p>
-          <p>Click the button below to reset your password:</p>
-          <div style="text-align: center;">
-            <a href="${resetUrl}" class="btn">Reset Password</a>
+          <p class="greeting">Dear <strong>${nameText}</strong>,</p>
+          <p>We are delighted to welcome you to the <strong>Shree Ramchandra Temple</strong> team!</p>
+          <p>Your dedication and service to the temple community are deeply appreciated. As a valued member of our team, you play an important role in preserving and promoting the spiritual heritage of our temple.</p>
+          
+          <div class="details">
+            <h3>📋 Your Team Details</h3>
+            <div class="details-row">
+              <span class="label">Role</span>
+              <span class="value">${roleText}</span>
+            </div>
+            ${teamMember.email ? `<div class="details-row">
+              <span class="label">Email</span>
+              <span class="value">${teamMember.email}</span>
+            </div>` : ''}
+            ${teamMember.phone ? `<div class="details-row">
+              <span class="label">Phone</span>
+              <span class="value">${teamMember.phone}</span>
+            </div>` : ''}
           </div>
-          <div class="warning">
-            <p>⚠️ <strong>This link expires in 30 minutes.</strong></p>
+
+          ${bioText ? `<div class="bio-section">📝 ${bioText}</div>` : ''}
+
+          <p style="font-size: 14px;">We look forward to working together in service of Lord Ram. Your contributions will help us continue to serve the community and preserve our sacred traditions.</p>
+          
+          <div style="text-align: center; margin-top: 20px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4000'}/templeteams" class="btn">View Team</a>
           </div>
-          <p style="font-size: 14px; color: #6b6b7a;">If you didn't request this, please ignore this email and your password will remain unchanged.</p>
-          <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
         </div>
         <div class="footer">
-          <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
-          <p style="margin: 4px 0 0;">Gaushala, Kathmandu, Nepal</p>
+          <p style="margin: 0;">🙏 Jai Shree Ram 🙏</p>
+          <p style="margin: 6px 0 0;">
+            <span class="temple-name">Shree Ramchandra Temple</span><br>
+            Gaushala, Kathmandu, Nepal
+          </p>
           <p style="margin: 10px 0 0; font-size: 11px; color: #aaa;">This is an automated email. Please do not reply to this email.</p>
         </div>
       </div>
@@ -492,25 +1314,30 @@ const sendPasswordResetEmail = async (user, resetToken, frontendUrl) => {
   `;
 
   return sendEmail({
-    to: user.email,
-    subject: '🔐 Password Reset Request - Shree Ramchandra Temple',
+    to: teamMember.email,
+    subject: '🕉 Welcome to the Shree Ramchandra Temple Team',
     html,
   });
 };
 
+// ============================================
+// CONTACT REPLY EMAIL
+// ============================================
+
 /**
- * Send welcome email to new user
- * @param {Object} user - User object
+ * Send contact reply email
+ * @param {Object} contact - Contact message object
+ * @param {string} reply - Reply message
  * @returns {Promise<Object>} Nodemailer response
  */
-const sendWelcomeEmail = async (user) => {
+const sendContactReply = async (contact, reply) => {
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Welcome to Shree Ramchandra Temple</title>
+      <title>Reply from Shree Ramchandra Temple</title>
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -547,6 +1374,28 @@ const sendWelcomeEmail = async (user) => {
           color: #1a1a2e;
           margin-bottom: 12px;
         }
+        .message-box {
+          background: #f8f5f3;
+          padding: 18px 20px;
+          border-radius: 12px;
+          margin: 18px 0;
+          border-left: 4px solid #7A1F2B;
+        }
+        .message-box p {
+          margin: 0;
+          color: #4a4a5a;
+        }
+        .reply-box {
+          background: #f0f7f4;
+          padding: 18px 20px;
+          border-radius: 12px;
+          margin: 18px 0;
+          border-left: 4px solid #1F4E3D;
+        }
+        .reply-box p {
+          margin: 0;
+          color: #2d5a47;
+        }
         .footer {
           text-align: center;
           padding: 20px;
@@ -555,29 +1404,58 @@ const sendWelcomeEmail = async (user) => {
           color: #8a8a9a;
           background: #fafafa;
         }
+        .footer .temple-name {
+          font-weight: 600;
+          color: #7A1F2B;
+        }
+        .btn {
+          display: inline-block;
+          padding: 10px 24px;
+          background: #7A1F2B;
+          color: white;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: 600;
+          margin-top: 10px;
+        }
+        .btn:hover {
+          background: #5B1420;
+        }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <h1>🕉 Welcome to Shree Ramchandra Temple</h1>
+          <h1>🙏 Reply from Shree Ramchandra Temple</h1>
+          <p style="margin: 4px 0 0; opacity: 0.85; font-size: 14px;">Thank you for reaching out to us</p>
         </div>
         <div class="content">
-          <p class="greeting">Dear <strong>${user.name}</strong>,</p>
-          <p>Welcome to the Shree Ramchandra Temple community!</p>
-          <p>We are delighted to have you as a member of our temple family. Through your account, you can:</p>
-          <ul style="color: #4a4a5a;">
-            <li>📅 Book pujas online</li>
-            <li>🙏 Make donations</li>
-            <li>📋 View your booking history</li>
-            <li>📸 Explore our gallery</li>
-          </ul>
-          <p>We look forward to serving you and hope you find peace and blessings at our temple.</p>
+          <p class="greeting">Dear <strong>${contact.name}</strong>,</p>
+          <p>Thank you for your message. We have reviewed your inquiry and here is our response:</p>
+          
+          <div class="reply-box">
+            <p><strong>📝 Our Reply:</strong></p>
+            <p style="margin-top: 8px;">${reply}</p>
+          </div>
+          
+          <div class="message-box">
+            <p><strong>📋 Your Original Message:</strong></p>
+            <p style="margin-top: 8px; color: #6b6b7a;">${contact.message}</p>
+          </div>
+          
+          <p style="font-size: 14px; color: #6b6b7a; margin-top: 16px;">
+            If you have any further questions, please don't hesitate to contact us again.
+          </p>
           <p style="margin-top: 16px;">Jai Shree Ram! 🙏</p>
+          
+          <div style="text-align: center; margin-top: 20px;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:4000'}" class="btn">Visit Temple Website</a>
+          </div>
         </div>
         <div class="footer">
-          <p style="margin: 0;"><strong>Shree Ramchandra Temple</strong></p>
+          <p style="margin: 0;"><span class="temple-name">Shree Ramchandra Temple</span></p>
           <p style="margin: 4px 0 0;">Gaushala, Kathmandu, Nepal</p>
+          <p style="margin: 10px 0 0; font-size: 11px; color: #aaa;">This is an automated email. Please do not reply to this email.</p>
         </div>
       </div>
     </body>
@@ -585,17 +1463,26 @@ const sendWelcomeEmail = async (user) => {
   `;
 
   return sendEmail({
-    to: user.email,
-    subject: '🕉 Welcome to Shree Ramchandra Temple',
+    to: contact.email,
+    subject: '🙏 Reply from Shree Ramchandra Temple',
     html,
   });
 };
 
+// ============================================
+// EXPORTS
+// ============================================
+
 module.exports = {
   sendEmail,
-  sendBookingConfirmation,
-  sendDonationConfirmation,
+  sendOtpEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
+  sendGoogleWelcomeEmail,
+  sendBookingConfirmation,
+  sendDonationConfirmation,
+  sendDonationConfirmationWithPDF,
+  sendTeamWelcomeEmail,
+  sendContactReply,
   isEmailConfigured,
 };

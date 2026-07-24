@@ -28,6 +28,11 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  description: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   status: {
     type: String,
     enum: ['pending', 'confirmed', 'completed', 'cancelled'],
@@ -37,6 +42,16 @@ const bookingSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  updatedAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+// Update timestamp on save
+bookingSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

@@ -1,0 +1,497 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Mail, Reply, Trash2, Eye, Check, X, Clock, 
+  Search, Filter, RefreshCw, ChevronDown, ChevronUp,
+  Send, User, Calendar, MessageCircle, CheckCircle,
+  XCircle, AlertCircle, Loader2, FileText
+} from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import api from '../../services/api';
+
+const AdminContact = ({ t }) => {
+  const { showToast } = useToast();
+  const [messages, setMessages] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [showReplyModal, setShowReplyModal] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    read: 0,
+    replied: 0,
+  });
+  const [sendingReply, setSendingReply] = useState(false);
+
+  useEffect(() => {
+    fetchMessages();
+    fetchStats();
+  }, []);
+
+  const fetchMessages = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/contact');
+      setMessages(response.data.data || []);
+    } catch (error) {
+      console.error('Fetch messages error:', error);
+      showToast('Failed to load messages', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/contact/stats');
+      setStats(response.data.data);
+    } catch (error) {
+      console.error('Fetch stats error:', error);
+    }
+  };
+
+  const handleViewMessage = async (id) => {
+    try {
+      const response = await api.get(`/contact/${id}`);
+      setMessages(messages.map(m => m._id === id ? response.data.data : m));
+      setSelectedMessage(response.data.data);
+      setShowReplyModal(true);
+      fetchStats();
+    } catch (error) {
+      console.error('View message error:', error);
+      showToast('Failed to load message', 'error');
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!replyText.trim() || replyText.trim().length < 2) {
+      showToast('Please enter a reply message', 'error');
+      return;
+    }
+
+    setSendingReply(true);
+    try {
+      await api.post(`/contact/${selectedMessage._id}/reply`, { 
+        reply: replyText.trim() 
+      });
+      
+      showToast('Reply sent successfully!', 'success');
+      setReplyText('');
+      setShowReplyModal(false);
+      setSelectedMessage(null);
+      fetchMessages();
+      fetchStats();
+    } catch (error) {
+      console.error('Send reply error:', error);
+      showToast(error.response?.data?.message || 'Failed to send reply', 'error');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this message?')) return;
+    try {
+      await api.delete(`/contact/${id}`);
+      setMessages(messages.filter(m => m._id !== id));
+      showToast('Message deleted', 'success');
+      fetchStats();
+    } catch (error) {
+      console.error('Delete error:', error);
+      showToast('Failed to delete', 'error');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const selectedIds = messages.filter(m => m.selected).map(m => m._id);
+    if (selectedIds.length === 0) {
+      showToast('Please select messages to delete', 'warning');
+      return;
+    }
+    if (!window.confirm(`Delete ${selectedIds.length} messages?`)) return;
+    
+    try {
+      await api.delete('/contact/bulk', { data: { ids: selectedIds } });
+      setMessages(messages.filter(m => !m.selected));
+      showToast(`${selectedIds.length} messages deleted`, 'success');
+      fetchStats();
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+      showToast('Failed to delete messages', 'error');
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setMessages(messages.map(m => 
+      m._id === id ? { ...m, selected: !m.selected } : m
+    ));
+  };
+
+  const toggleSelectAll = () => {
+    const allSelected = messages.every(m => m.selected);
+    setMessages(messages.map(m => ({ ...m, selected: !allSelected })));
+  };
+
+  const getStatusBadge = (status) => {
+    const colors = {
+      pending: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+      read: 'bg-blue-100 text-blue-700 border-blue-200',
+      replied: 'bg-green-100 text-green-700 border-green-200',
+    };
+    return colors[status] || colors.pending;
+  };
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'pending': return <Clock size={14} className="text-yellow-500" />;
+      case 'read': return <Eye size={14} className="text-blue-500" />;
+      case 'replied': return <CheckCircle size={14} className="text-green-500" />;
+      default: return <Clock size={14} className="text-gray-500" />;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const filteredMessages = messages.filter(m => {
+    const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          m.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          m.message.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'all' || m.status === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const toggleExpand = (id) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-400 font-medium">Total</p>
+              <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+              <Mail size={18} className="text-gray-500" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm p-4 border border-yellow-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-yellow-600 font-medium">Pending</p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-yellow-50 flex items-center justify-center">
+              <Clock size={18} className="text-yellow-500" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm p-4 border border-blue-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-blue-600 font-medium">Read</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.read}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+              <Eye size={18} className="text-blue-500" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm p-4 border border-green-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-green-600 font-medium">Replied</p>
+              <p className="text-2xl font-bold text-green-600">{stats.replied}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+              <CheckCircle size={18} className="text-green-500" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Actions Bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={messages.length > 0 && messages.every(m => m.selected)}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 rounded border-gray-300 text-[#7A0000] focus:ring-[#7A0000]"
+            />
+            <span className="text-xs text-gray-400">
+              {messages.filter(m => m.selected).length} selected
+            </span>
+          </div>
+          
+          <button
+            onClick={handleBulkDelete}
+            className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-xl hover:bg-red-100 transition-all"
+          >
+            <Trash2 size={16} className="inline mr-1" />
+            Delete Selected
+          </button>
+
+          <div className="flex-1" />
+
+          <div className="relative">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search messages..."
+              className="pl-9 pr-4 py-2 border border-gray-200 rounded-xl focus:border-[#7A0000] focus:outline-none text-sm w-40 sm:w-56"
+            />
+          </div>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-4 py-2 border border-gray-200 rounded-xl focus:border-[#7A0000] focus:outline-none text-sm bg-white"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="read">Read</option>
+            <option value="replied">Replied</option>
+          </select>
+
+          <button
+            onClick={() => { fetchMessages(); fetchStats(); }}
+            className="p-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+          >
+            <RefreshCw size={16} className="text-gray-400" />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages Table */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 size={32} className="animate-spin text-[#7A0000]" />
+          </div>
+        ) : filteredMessages.length === 0 ? (
+          <div className="text-center py-12">
+            <Mail size={48} className="mx-auto text-gray-300 mb-3" />
+            <p className="text-gray-500">No messages found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b border-gray-200">
+                  <th className="pb-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wide">
+                    <input
+                      type="checkbox"
+                      checked={messages.length > 0 && messages.every(m => m.selected)}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300 text-[#7A0000] focus:ring-[#7A0000]"
+                    />
+                  </th>
+                  <th className="pb-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wide">From</th>
+                  <th className="pb-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wide hidden md:table-cell">Message</th>
+                  <th className="pb-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Date</th>
+                  <th className="pb-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wide">Status</th>
+                  <th className="pb-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-wide text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredMessages.map((message) => (
+                  <React.Fragment key={message._id}>
+                    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={message.selected || false}
+                          onChange={() => toggleSelect(message._id)}
+                          className="w-4 h-4 rounded border-gray-300 text-[#7A0000] focus:ring-[#7A0000]"
+                        />
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-[#7A0000] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                            {message.name?.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-800">{message.name}</p>
+                            <p className="text-xs text-gray-400">{message.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 hidden md:table-cell">
+                        <p className="text-gray-600 truncate max-w-[200px]">{message.message}</p>
+                      </td>
+                      <td className="py-3 px-4 hidden lg:table-cell text-gray-500 text-xs">
+                        {formatDate(message.createdAt)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full border ${getStatusBadge(message.status)}`}>
+                          {getStatusIcon(message.status)}
+                          {message.status.charAt(0).toUpperCase() + message.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {message.status !== 'replied' && (
+                            <button
+                              onClick={() => handleViewMessage(message._id)}
+                              className="p-1.5 rounded-lg text-blue-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                              title="Reply"
+                            >
+                              <Reply size={16} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setExpandedId(expandedId === message._id ? null : message._id)}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-[#7A0000] transition-all"
+                            title="View Details"
+                          >
+                            {expandedId === message._id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(message._id)}
+                            className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {/* Expanded Details */}
+                    {expandedId === message._id && (
+                      <tr>
+                        <td colSpan="6" className="px-4 py-4 bg-gray-50/50 border-b border-gray-100">
+                          <div className="space-y-3">
+                            <div>
+                              <p className="text-xs text-gray-400">Message</p>
+                              <p className="text-gray-700 text-sm whitespace-pre-wrap">{message.message}</p>
+                            </div>
+                            {message.reply && (
+                              <div className="bg-green-50 rounded-xl p-3 border border-green-200">
+                                <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                                  <CheckCircle size={12} />
+                                  Reply
+                                </p>
+                                <p className="text-gray-700 text-sm mt-1 whitespace-pre-wrap">{message.reply}</p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  Replied by {message.repliedBy} on {formatDate(message.repliedAt)}
+                                </p>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-4 text-xs text-gray-400">
+                              <span>From: {message.email}</span>
+                              <span>•</span>
+                              <span>Received: {formatDate(message.createdAt)}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Reply Modal */}
+      {showReplyModal && selectedMessage && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-gradient-to-r from-[#7A0000]/10 to-[#A00000]/5 px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-serif font-bold text-[#7A0000] flex items-center gap-2">
+                <Reply size={18} />
+                Reply to {selectedMessage.name}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowReplyModal(false);
+                  setSelectedMessage(null);
+                  setReplyText('');
+                }}
+                className="p-2 rounded-xl hover:bg-gray-100 transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <p className="text-xs text-gray-400">Original Message</p>
+                <p className="text-sm font-medium text-gray-800 mt-1">{selectedMessage.name}</p>
+                <p className="text-xs text-gray-400">{selectedMessage.email}</p>
+                <p className="text-sm text-gray-600 mt-2 whitespace-pre-wrap">{selectedMessage.message}</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-700 block mb-1.5">Your Reply</label>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  rows={5}
+                  placeholder="Type your reply here..."
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#7A0000] focus:ring-2 focus:ring-[#7A0000]/10 focus:outline-none transition-all text-sm resize-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {replyText.length} characters • This will be sent as an email to the user
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+                <button
+                  onClick={() => {
+                    setShowReplyModal(false);
+                    setSelectedMessage(null);
+                    setReplyText('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSendReply}
+                  disabled={sendingReply || !replyText.trim()}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#7A0000] text-white rounded-xl text-sm font-semibold hover:bg-[#5A0000] transition-all disabled:opacity-50"
+                >
+                  {sendingReply ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      Send Reply
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminContact;

@@ -528,6 +528,9 @@ export const translations = {
       noPhotosYet: "अभी तक कोई फोटो नहीं जोड़ी गई।",
       noVideosYet: "अभी तक कोई वीडियो नहीं जोड़ा गया।",
       
+
+
+      
       // Other
       welcomeBack: "वापस स्वागत है",
       role: "भूमिका",

@@ -21,7 +21,15 @@ import AdminGallery from '../components/admin/AdminGallery';
 import AdminDonations from '../components/admin/AdminDonations';
 import AdminBookings from '../components/admin/AdminBookings';
 import AdminNotice from '../components/admin/AdminNotice';
-import CloudPhotoPage from '../pages/CloudPhotoPage';
+import AdminBlogs from '../components/admin/AdminBlogs';
+import AdminHome from '../components/admin/AdminHome';
+import AdminFooter from '../components/admin/AdminFooter';
+import AdminNotifications from './AdminNotifications';
+import AdminSettings from './AdminSettings';
+import CloudPhotoPage from './CloudPhotoPage';
+import AdminContact from '../components/admin/AdminContact';
+import AdminVisitor from '../components/admin/AdminVisitor';
+import AdminBackup from '../components/admin/AdminBackup';
 
 import { Menu, Settings, Bell } from 'lucide-react';
 
@@ -105,11 +113,31 @@ const AdminPage = () => {
     );
   }
 
-  return (
-    <div className="flex min-h-screen bg-gray-50">
-      <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+  // Helper to get page title
+  const getPageTitle = () => {
+    const path = location.pathname.split('/admin/')[1];
+    if (!path) return 'Overview';
+    if (path === 'cloud') return 'Cloud Storage';
+    if (path === 'cloudgallery') return 'Cloud Gallery';
+    if (path === 'notifications') return 'Notifications';
+    if (path === 'settings') return 'Settings';
+    if (path === 'footer') return 'Footer Settings';
+    if (path === 'home') return 'Home Settings';
+    if (path === 'contact') return 'Contact Messages';
+    if (path === 'visitors') return 'Visitor Analytics';
+    if (path === 'backup') return 'Backup & Restore';
+    return path.charAt(0).toUpperCase() + path.slice(1);
+  };
 
-      <div className="flex-1 flex flex-col min-w-0">
+  return (
+    <div className="flex min-h-screen bg-gray-50 admin-page">
+      {/* Sidebar - sticky and independent */}
+      <div className="sticky top-0 h-screen">
+        <AdminSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      </div>
+
+      {/* Main Content - scrollable independently */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto h-screen main-content-scroll">
         <header className="sticky top-0 z-30 flex items-center justify-between px-6 py-4 bg-white border-b border-gray-100 shadow-sm">
           <div className="flex items-center gap-4">
             <button
@@ -119,17 +147,22 @@ const AdminPage = () => {
               <Menu size={20} className="text-ink-soft" />
             </button>
             <h2 className="text-lg font-serif font-semibold text-ink">
-              {location.pathname.includes('/cloud') ? 'Cloud Storage' : 
-               location.pathname.split('/admin/')[1]?.charAt(0).toUpperCase() + location.pathname.split('/admin/')[1]?.slice(1) || 'Overview'}
+              {getPageTitle()}
             </h2>
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
+            <button
+              onClick={() => navigate('/admin/notifications')}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative"
+            >
               <Bell size={18} className="text-ink-soft" />
               <span className="absolute top-1 right-1 w-2 h-2 bg-vermilion rounded-full"></span>
             </button>
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <button
+              onClick={() => navigate('/admin/settings')}
+              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
               <Settings size={18} className="text-ink-soft" />
             </button>
             <div className="flex items-center gap-2.5 pl-3 border-l border-gray-200">
@@ -143,8 +176,9 @@ const AdminPage = () => {
           </div>
         </header>
 
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-6 overflow-y-auto content-scroll">
           <Routes>
+            {/* Overview */}
             <Route index element={<AdminOverview 
               settings={settings} users={users} events={events} 
               donations={donations} bookings={bookings} 
@@ -155,9 +189,18 @@ const AdminPage = () => {
               donations={donations} bookings={bookings} 
               t={t} lang={lang} 
             />} />
+
+            {/* Home Settings */}
+            <Route path="home" element={<AdminHome 
+              settings={settings} updateSettings={updateSettings} t={t} 
+            />} />
+
+            {/* User Management */}
             <Route path="users" element={<AdminUsers 
               users={users} setUsers={setUsers} t={t} 
             />} />
+
+            {/* Content Management */}
             <Route path="hero" element={<AdminHero 
               settings={settings} updateSettings={updateSettings} t={t} 
             />} />
@@ -179,6 +222,13 @@ const AdminPage = () => {
             <Route path="logo" element={<AdminLogo 
               settings={settings} updateSettings={updateSettings} t={t} 
             />} />
+
+            {/* Footer Settings */}
+            <Route path="footer" element={<AdminFooter 
+              settings={settings} updateSettings={updateSettings} t={t} 
+            />} />
+
+            {/* Events & Gallery */}
             <Route path="events" element={<AdminEvents 
               events={events} setEvents={setEvents} t={t} 
             />} />
@@ -187,6 +237,8 @@ const AdminPage = () => {
               galleryVideos={galleryVideos} setGalleryVideos={setGalleryVideos} 
               t={t} 
             />} />
+
+            {/* Donations & Bookings */}
             <Route path="donations" element={<AdminDonations 
               donations={donations} setDonations={setDonations} 
               settings={settings} updateSettings={updateSettings} 
@@ -195,13 +247,59 @@ const AdminPage = () => {
             <Route path="bookings" element={<AdminBookings 
               bookings={bookings} setBookings={setBookings} t={t} 
             />} />
+
+            {/* Notice & Blogs */}
             <Route path="notice" element={<AdminNotice 
               settings={settings} updateSettings={updateSettings} t={t} 
             />} />
+            <Route path="blogs" element={<AdminBlogs 
+              settings={settings} updateSettings={updateSettings} t={t} 
+            />} />
+
+            {/* Contact Messages */}
+            <Route path="contact" element={<AdminContact t={t} />} />
+
+            {/* Visitor Analytics */}
+            <Route path="visitors" element={<AdminVisitor t={t} />} />
+
+            {/* Backup & Restore */}
+            <Route path="backup" element={<AdminBackup t={t} />} />
+
+            {/* Cloud Storage */}
             <Route path="cloud" element={<CloudPhotoPage />} />
+            <Route path="cloudgallery" element={<CloudPhotoPage />} />
+
+            {/* Notifications & Settings */}
+            <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="settings" element={<AdminSettings />} />
           </Routes>
         </div>
       </div>
+
+      {/* Hide scrollbar styles */}
+      <style>{`
+        /* Hide scrollbar for main content */
+        .main-content-scroll::-webkit-scrollbar,
+        .content-scroll::-webkit-scrollbar {
+          width: 0;
+          display: none;
+        }
+        .main-content-scroll,
+        .content-scroll {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        
+        /* Hide scrollbar for entire page */
+        .admin-page {
+          overflow: hidden;
+        }
+        
+        /* Smooth scrolling */
+        .main-content-scroll {
+          scroll-behavior: smooth;
+        }
+      `}</style>
     </div>
   );
 };

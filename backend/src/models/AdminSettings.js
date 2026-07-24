@@ -10,6 +10,10 @@ const adminSettingsSchema = new mongoose.Schema({
     type: String,
     default: 'linear-gradient(160deg,#7A1F2B 0%,#5B1420 45%,#2B1810 100%)',
   },
+  heroEnabled: {
+    type: Boolean,
+    default: true,
+  },
   
   // Daily Quotes (Multi-language)
   quotes: {
@@ -20,10 +24,31 @@ const adminSettingsSchema = new mongoose.Schema({
     ta: { type: String, default: 'இதயத்தில் நேர்மை இருந்தால், குணத்தில் அழகு இருக்கும்.' },
   },
   
-  // Temple Timings
+  // Temple Timings (Multi-language)
   timings: {
     open: { type: String, default: '05:00 AM' },
     close: { type: String, default: '08:00 PM' },
+    openLabel: {
+      en: { type: String, default: 'Opening Time' },
+      ne: { type: String, default: 'खुल्ने समय' },
+      hi: { type: String, default: 'खुलने का समय' },
+      zh: { type: String, default: '开放时间' },
+      ta: { type: String, default: 'திறக்கும் நேரம்' },
+    },
+    closeLabel: {
+      en: { type: String, default: 'Closing Time' },
+      ne: { type: String, default: 'बन्द हुने समय' },
+      hi: { type: String, default: 'बन्द होने का समय' },
+      zh: { type: String, default: '关闭时间' },
+      ta: { type: String, default: 'மூடும் நேரம்' },
+    },
+    dailyAarti: {
+      en: { type: String, default: 'Daily Aarti' },
+      ne: { type: String, default: 'दैनिक आरती' },
+      hi: { type: String, default: 'दैनिक आरती' },
+      zh: { type: String, default: '每日祈祷' },
+      ta: { type: String, default: 'தினசரி ஆரத்தி' },
+    },
   },
   
   // About Section (Multi-language)
@@ -43,9 +68,28 @@ const adminSettingsSchema = new mongoose.Schema({
       zh: { type: String, default: '室利罗摩钱德拉神庙坐落于高沙拉的中心，世代以来一直是信仰的象征，以开放的大门和心怀敬意的态度欢迎罗摩神的信众。' },
       ta: { type: String, default: 'கௌஷாலாவின் இதயத்தில் அமைந்துள்ள ஸ்ரீ ராமச்சந்திர கோயில், தலைமுறை தலைமுறையாக பக்தியின் ஒளிவிளக்காக நின்று, ராமர் பக்தர்களை திறந்த மனதுடன் வரவேற்கிறது.' },
     },
+    // About Preview Images
+    images: {
+      type: [{
+        id: { type: String },
+        src: { type: String },
+        alt: {
+          en: { type: String, default: '' },
+          ne: { type: String, default: '' },
+          hi: { type: String, default: '' },
+          zh: { type: String, default: '' },
+          ta: { type: String, default: '' },
+        },
+        order: { type: Number, default: 0 },
+        enabled: { type: Boolean, default: true },
+      }],
+      default: [],
+    },
   },
   
-  // Logo Settings (Multi-language)
+  // ============================================
+  // LOGO SETTINGS (Multi-language with full customization)
+  // ============================================
   logo: {
     photo: { type: String, default: null },
     text: {
@@ -55,6 +99,16 @@ const adminSettingsSchema = new mongoose.Schema({
       zh: { type: String, default: '室利罗摩钱德拉' },
       ta: { type: String, default: 'ஸ்ரீ ராமச்சந்திர' },
     },
+    // Logo customization fields
+    size: { type: String, default: 'w-14 h-14' },
+    shape: { type: String, default: 'rounded-xl' },
+    bgColor: { type: String, default: 'from-vermilion to-maroon-deep' },
+    showText: { type: Boolean, default: true },
+    textColor: { type: String, default: 'text-maroon' },
+    textSize: { type: String, default: 'text-base md:text-xl' },
+    fontWeight: { type: String, default: 'font-bold' },
+    showLocation: { type: Boolean, default: true },
+    width: { type: String, default: 'w-auto' },
   },
   
   // Donation Settings
@@ -62,6 +116,46 @@ const adminSettingsSchema = new mongoose.Schema({
     qrPhoto: { type: String, default: null },
     baseCount: { type: Number, default: 1248 },
     bankNumber: { type: String, default: 'eSewa / COD — 98XXXXXXXX' },
+    bankName: { type: String, default: 'Nepal Investment Bank' },
+    accountHolder: { type: String, default: 'Temple Trust Fund' },
+  },
+  
+  // Gallery Images (for homepage)
+  galleryImages: {
+    type: [{
+      id: { type: String },
+      src: { type: String },
+      alt: {
+        en: { type: String, default: '' },
+        ne: { type: String, default: '' },
+        hi: { type: String, default: '' },
+        zh: { type: String, default: '' },
+        ta: { type: String, default: '' },
+      },
+      order: { type: Number, default: 0 },
+      enabled: { type: Boolean, default: true },
+    }],
+    default: [],
+  },
+  
+  // YouTube Live Video
+  liveVideo: {
+    enabled: { type: Boolean, default: true },
+    url: { type: String, default: 'https://www.youtube.com/embed/videoseries?list=PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf&autoplay=1&mute=1' },
+    title: {
+      en: { type: String, default: 'Live Darshan' },
+      ne: { type: String, default: 'लाइभ दर्शन' },
+      hi: { type: String, default: 'लाइव दर्शन' },
+      zh: { type: String, default: '现场朝拜' },
+      ta: { type: String, default: 'நேரடி தரிசனம்' },
+    },
+    description: {
+      en: { type: String, default: 'Experience the divine presence of Lord Ram from anywhere in the world' },
+      ne: { type: String, default: 'संसारको कुनै पनि स्थानबाट भगवान रामको दिव्य उपस्थिति अनुभव गर्नुहोस्' },
+      hi: { type: String, default: 'दुनिया में कहीं से भी भगवान राम की दिव्य उपस्थिति का अनुभव करें' },
+      zh: { type: String, default: '从世界任何地方体验罗摩神的神圣存在' },
+      ta: { type: String, default: 'உலகில் எங்கிருந்தும் ராமரின் தெய்வீக இருப்பை அனுபவியுங்கள்' },
+    },
   },
   
   // Notice Modal Settings
@@ -153,12 +247,137 @@ const adminSettingsSchema = new mongoose.Schema({
     },
   },
   
-  // Timestamp
+  // ============================================
+  // BOOKING MANAGEMENT SETTINGS
+  // ============================================
+  
+  // Puja Types - Customizable list
+  pujaTypes: {
+    type: [String],
+    default: ['Ram Puja', 'Satyanarayan Puja', 'Griha Pravesh Puja', 'Birthday Puja', 'General Darshan Booking'],
+  },
+  
+  // Date-wise booking limits
+  dateLimits: {
+    type: Map,
+    of: Number,
+    default: {},
+    description: 'Date limits for bookings (date string -> max bookings)',
+  },
+  
+  // Booking availability toggle
+  bookingAvailable: {
+    type: Boolean,
+    default: true,
+  },
+  
+  // Message shown when booking is unavailable
+  availabilityMessage: {
+    type: String,
+    default: 'Bookings are currently unavailable. Please check back later.',
+  },
+  
+  // Booking stats for frontend display
+  bookingStats: {
+    pujaTypes: { type: Number, default: 5 },
+    secureBooking: { type: String, default: '100%' },
+    support: { type: String, default: '24/7' },
+  },
+  
+  // Booking Background Photo (for the 50% image on booking page)
+  bookingBgPhoto: {
+    type: String,
+    default: '/4.jpg',
+  },
+  
+  // ============================================
+  // FOOTER SETTINGS
+  // ============================================
+  
+  footer: {
+    enabled: { type: Boolean, default: true },
+    bgType: { type: String, enum: ['color', 'image', 'video'], default: 'color' },
+    bgColor: { type: String, default: '#f8f5f0' },
+    bgImage: { type: String, default: null },
+    bgVideo: { type: String, default: null },
+    logoShape: { type: String, enum: ['circle', 'square', 'rectangle'], default: 'circle' },
+    logoSize: { type: String, enum: ['sm', 'md', 'lg'], default: 'md' },
+    showSocial: { type: Boolean, default: true },
+    showQuickLinks: { type: Boolean, default: true },
+    showContact: { type: Boolean, default: true },
+    showSupport: { type: Boolean, default: true },
+    showMap: { type: Boolean, default: true },
+    showMadeBy: { type: Boolean, default: true },
+    mapUrl: { type: String, default: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3532.245849736379!2d85.3221176!3d27.7170489!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x39eb190c9f5c8d7b%3A0x4f8b3f8b3f8b3f8b!2sGaushala%2C%20Kathmandu%2044600!5e0!3m2!1sen!2snp!4v1700000000000' },
+    socialLinks: {
+      facebook: { enabled: { type: Boolean, default: true }, url: { type: String, default: 'https://facebook.com' } },
+      youtube: { enabled: { type: Boolean, default: true }, url: { type: String, default: 'https://youtube.com' } },
+      instagram: { enabled: { type: Boolean, default: true }, url: { type: String, default: 'https://instagram.com' } },
+      twitter: { enabled: { type: Boolean, default: true }, url: { type: String, default: 'https://twitter.com' } },
+    },
+    quickLinks: [{
+      path: { type: String, default: '' },
+      label: {
+        en: { type: String, default: '' },
+        ne: { type: String, default: '' },
+        hi: { type: String, default: '' },
+        zh: { type: String, default: '' },
+        ta: { type: String, default: '' },
+      }
+    }],
+    contactInfo: {
+      phone: { type: String, default: '+977-1-4XXXXXX' },
+      email: { type: String, default: 'info@ramchandratemple.org.np' },
+      address: {
+        en: { type: String, default: 'Battisputali, Gaushala, Kathmandu, Nepal' },
+        ne: { type: String, default: 'बत्तिसपुतली, गौशाला, काठमाडौं, नेपाल' },
+        hi: { type: String, default: 'बत्तीसपुतली, गौशाला, काठमाडौं, नेपाल' },
+        zh: { type: String, default: '尼泊尔加德满都巴提斯普塔利' },
+        ta: { type: String, default: 'பட்டீஸ்புதாலி, கௌஷாலா, காத்மாண்டு, நேபாளம்' },
+      }
+    },
+    footerText: {
+      rights: {
+        en: { type: String, default: 'All rights reserved.' },
+        ne: { type: String, default: 'सबै अधिकार सुरक्षित।' },
+        hi: { type: String, default: 'सभी अधिकार सुरक्षित।' },
+        zh: { type: String, default: '版权所有。' },
+        ta: { type: String, default: 'அனைத்து உரிமைகளும் பாதுகாக்கப்பட்டவை.' },
+      },
+      blessing: {
+        en: { type: String, default: 'Jai Shree Ram' },
+        ne: { type: String, default: 'जय श्री राम' },
+        hi: { type: String, default: 'जय श्री राम' },
+        zh: { type: String, default: '斋·什里·拉姆' },
+        ta: { type: String, default: 'ஜெய் ஸ்ரீ ராம்' },
+      }
+    },
+    madeBy: {
+      text: {
+        en: { type: String, default: 'Made by ZeroInfinity Technology' },
+        ne: { type: String, default: 'जिरोइन्फिनिटी टेक्नोलोजीद्वारा निर्मित' },
+        hi: { type: String, default: 'जीरोइन्फिनिटी टेक्नोलोजी द्वारा निर्मित' },
+        zh: { type: String, default: '由零无限科技制作' },
+        ta: { type: String, default: 'ஜீரோஇன்ஃபினிட்டி டெக்னாலஜி மூலம் உருவாக்கப்பட்டது' },
+      },
+      url: { type: String, default: 'https://www.zeroinfinitytechnologies.com/' },
+      logo: { type: String, default: 'https://zeroinfinitytechnologies.com/images/logo-1771865164119.webp?t=1784551924378' },
+    },
+  },
+  
+  // ============================================
+  // TIMESTAMP
+  // ============================================
+  
   updatedAt: {
     type: Date,
     default: Date.now,
   },
 });
+
+// ============================================
+// STATIC METHODS
+// ============================================
 
 // Ensure only one settings document exists
 adminSettingsSchema.statics.getSettings = async function() {
@@ -168,6 +387,10 @@ adminSettingsSchema.statics.getSettings = async function() {
   }
   return settings;
 };
+
+// ============================================
+// PRE-SAVE MIDDLEWARE
+// ============================================
 
 // Update timestamp on save
 adminSettingsSchema.pre('save', function(next) {

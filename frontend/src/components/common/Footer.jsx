@@ -1,307 +1,422 @@
-// import React, { useState, useEffect } from 'react';
-// import { Link } from 'react-router-dom';
-// import { useLanguage } from '../../context/LanguageContext';
-// import api from '../../services/api';
-// import { Phone, Mail, MapPin, Sun } from 'lucide-react';
-
-// const Footer = () => {
-//   const { t, lang } = useLanguage();
-//   const [settings, setSettings] = useState(null);
-
-//   useEffect(() => {
-//     const fetchSettings = async () => {
-//       try {
-//         const response = await api.get('/admin/settings');
-//         setSettings(response.data);
-//       } catch (error) {
-//         console.error('Error fetching settings:', error);
-//       }
-//     };
-//     fetchSettings();
-//   }, []);
-
-//   const logoText = settings?.logo?.text?.[lang] || t.templeName;
-//   const logoPhoto = settings?.logo?.photo || null;
-
-//   return (
-//     <footer className="bg-white border-t border-line">
-//       <div className="max-w-7xl mx-auto px-6 py-12 md:py-16">
-//         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12">
-//           {/* Brand */}
-//           <div>
-//             <div className="flex items-center gap-2.5">
-//               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-vermilion to-maroon-deep text-white flex items-center justify-center overflow-hidden">
-//                 {logoPhoto ? (
-//                   <img src={logoPhoto} alt="Logo" className="w-full h-full object-cover" />
-//                 ) : (
-//                   <Sun size={16} />
-//                 )}
-//               </div>
-//               <span className="font-serif font-bold text-lg text-ink">{logoText}</span>
-//             </div>
-//             <p className="text-sm text-ink-soft mt-3 flex items-center gap-1.5">
-//               <MapPin size={14} /> {t.templeAddressLine}
-//             </p>
-//           </div>
-
-//           {/* Quick Links */}
-//           <div>
-//             <h5 className="text-xs font-extrabold text-ink uppercase tracking-wider mb-3">{t.quickLinks}</h5>
-//             <div className="flex flex-col gap-1.5">
-//               {[
-//                 { path: '/about', label: t.navAbout },
-//                 { path: '/history', label: t.navHistory },
-//                 { path: '/events', label: t.navEvents },
-//                 { path: '/donate', label: t.navDonate },
-//               ].map((link) => (
-//                 <Link
-//                   key={link.path}
-//                   to={link.path}
-//                   className="text-sm text-ink-soft hover:text-vermilion transition-colors"
-//                 >
-//                   {link.label}
-//                 </Link>
-//               ))}
-//             </div>
-//           </div>
-
-//           {/* Contact */}
-//           <div>
-//             <h5 className="text-xs font-extrabold text-ink uppercase tracking-wider mb-3">{t.followUs}</h5>
-//             <div className="flex flex-col gap-2">
-//               <p className="text-sm text-ink-soft flex items-center gap-2">
-//                 <Phone size={14} className="text-vermilion" /> +977-1-4XXXXXX
-//               </p>
-//               <p className="text-sm text-ink-soft flex items-center gap-2">
-//                 <Mail size={14} className="text-vermilion" /> info@ramchandratemple.org.np
-//               </p>
-//             </div>
-//           </div>
-//         </div>
-
-//         <div className="border-t border-line mt-8 pt-6 text-center">
-//           <p className="text-xs text-ink-soft">🕉 {t.templeName} — {t.rightsReserved}</p>
-//         </div>
-//       </div>
-//     </footer>
-//   );
-// };
-
-// export default Footer;
-
-
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
 import { 
   Phone, 
   Mail, 
   MapPin, 
   Sun, 
-  Facebook, 
-  Youtube, 
-  Instagram, 
-  Twitter,
   ArrowRight,
   Heart,
-  Clock
+  Clock,
+  Send,
+  MessageCircle,
+  Home,
+  Info,
+  History,
+  Calendar,
+  Image,
+  PhoneCall,
+  Gift,
+  Users,
+  Compass,
+  MapPinned,
+  PhoneForwarded,
+  MailOpen,
+  Map
 } from 'lucide-react';
 
 const Footer = () => {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [settings, setSettings] = useState(null);
+  const [footerSettings, setFooterSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState('');
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscribing, setSubscribing] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         const response = await api.get('/admin/settings');
         setSettings(response.data);
+        const footerData = response.data?.footer || {};
+        setFooterSettings({
+          enabled: footerData.enabled !== undefined ? footerData.enabled : true,
+          ...footerData
+        });
       } catch (error) {
         console.error('Error fetching settings:', error);
+        setFooterSettings({ enabled: true });
+      } finally {
+        setLoading(false);
       }
     };
     fetchSettings();
   }, []);
 
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    if (!email || !email.includes('@')) {
+      showToast('Please enter a valid email address', 'error');
+      return;
+    }
+
+    setSubscribing(true);
+    try {
+      await api.post('/subscribe', { email });
+      setIsSubscribed(true);
+      showToast('Successfully subscribed! You\'ll receive important updates.', 'success');
+      setEmail('');
+    } catch (error) {
+      console.error('Subscribe error:', error);
+      showToast(error.response?.data?.message || 'Subscription failed. Please try again.', 'error');
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
+  if (loading) {
+    return null;
+  }
+
+  const footer = footerSettings || { enabled: true };
   const logoText = settings?.logo?.text?.[lang] || t.templeName || 'Shree Ramchandra Temple';
   const logoPhoto = settings?.logo?.photo || null;
   const timings = settings?.timings || { open: '05:00 AM', close: '08:00 PM' };
   const currentYear = new Date().getFullYear();
 
-  const quickLinks = [
-    { path: '/about', label: t.navAbout || 'About Us' },
-    { path: '/history', label: t.navHistory || 'History' },
-    { path: '/events', label: t.navEvents || 'Events' },
-    { path: '/gallery', label: t.navGallery || 'Gallery' },
-    { path: '/booking', label: t.navBooking || 'Book Puja' },
-    { path: '/donate', label: t.navDonate || 'Donate' },
-    { path: '/contact', label: t.navContact || 'Contact' },
+  const getBgStyle = () => {
+    if (footer.bgType === 'image' && footer.bgImage) {
+      return { 
+        backgroundImage: `url(${footer.bgImage})`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed'
+      };
+    }
+    if (footer.bgType === 'video' && footer.bgVideo) {
+      return { position: 'relative' };
+    }
+    return { backgroundColor: footer.bgColor || '#ffffff' };
+  };
+
+  const getLogoShapeClass = () => {
+    const shape = footer.logoShape || 'circle';
+    const size = footer.logoSize || 'md';
+    const sizeMap = { sm: 'w-9 h-9', md: 'w-12 h-12', lg: 'w-16 h-16' };
+    const shapeMap = { 
+      circle: 'rounded-full', 
+      square: 'rounded-lg', 
+      rectangle: 'rounded-lg w-16 h-12' 
+    };
+    return `${sizeMap[size] || sizeMap.md} ${shapeMap[shape] || shapeMap.circle}`;
+  };
+
+  // Navigation Buttons from settings - No Icons
+  const defaultNavButtons = [
+    { label: { en: 'Home', ne: 'गृह', hi: 'होम', zh: '首页', ta: 'முகப்பு' }, path: '/' },
+    { label: { en: 'About', ne: 'बारे', hi: 'के बारे में', zh: '关于', ta: 'பற்றி' }, path: '/about' },
+    { label: { en: 'History', ne: 'इतिहास', hi: 'इतिहास', zh: '历史', ta: 'வரலாறு' }, path: '/history' },
+    { label: { en: 'Events', ne: 'कार्यक्रम', hi: 'आयोजन', zh: '活动', ta: 'நிகழ்வுகள்' }, path: '/events' },
+    { label: { en: 'Gallery', ne: 'ग्यालरी', hi: 'गैलरी', zh: '画廊', ta: 'கேலரி' }, path: '/gallery' },
+    { label: { en: 'Contact', ne: 'सम्पर्क', hi: 'संपर्क', zh: '联系', ta: 'தொடர்பு' }, path: '/contact' },
+    { label: { en: 'Donate', ne: 'दान', hi: 'दान', zh: '捐赠', ta: 'நன்கொடை' }, path: '/donate' },
+    { label: { en: 'Team', ne: 'टोली', hi: 'टीम', zh: '团队', ta: 'குழு' }, path: '/templeteams' },
   ];
 
-  const socialLinks = [
-    { icon: Facebook, href: 'https://facebook.com', label: 'Facebook' },
-    { icon: Youtube, href: 'https://youtube.com', label: 'YouTube' },
-    { icon: Instagram, href: 'https://instagram.com', label: 'Instagram' },
-    { icon: Twitter, href: 'https://twitter.com', label: 'Twitter' },
-  ];
+  const navButtons = footer.navButtons || defaultNavButtons;
+
+  const getLocalizedText = (obj) => {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj;
+    return obj[lang] || obj.en || '';
+  };
+
+  if (footer.enabled === false) {
+    return null;
+  }
+
+  const isDarkBg = footer.bgType === 'image' || footer.bgType === 'video' || 
+                   (footer.bgColor && footer.bgColor !== '#ffffff' && footer.bgColor !== '#f8f5f0');
 
   return (
-    <footer className="bg-white border-t border-gray-100">
-      {/* Main Footer */}
-      <div className="max-w-7xl mx-auto px-6 py-16 lg:py-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-12">
-          {/* Brand Column */}
-          <div className="lg:col-span-1">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-vermilion to-maroon-deep text-white flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg shadow-vermilion/20">
-                {logoPhoto ? (
-                  <img src={logoPhoto} alt="Logo" className="w-full h-full object-cover" />
-                ) : (
-                  <Sun size={22} />
-                )}
+    <footer className="relative overflow-hidden" style={getBgStyle()}>
+      {/* Jai Shree Ram Banner - Top Center - No icons, just text */}
+      {footer.bgType === 'video' && footer.bgVideo && (
+        <video 
+          className="absolute inset-0 w-full h-full object-cover"
+          src={footer.bgVideo}
+          autoPlay
+          muted
+          loop
+          playsInline
+        />
+      )}
+      
+      {(footer.bgType === 'image' || footer.bgType === 'video') && (
+        <div className="absolute inset-0 bg-black/50" />
+      )}
+
+      <div className="relative z-10">
+        {/* Top Banner - Clean, just text */}
+        <div className={`py-3 text-center border-b ${isDarkBg ? 'border-white/10' : 'border-gray-200'}`}>
+          <span className={`font-bold text-sm md:text-base tracking-[0.15em] uppercase ${
+            isDarkBg ? 'text-white/90' : 'text-maroon'
+          }`} style={{ fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", letterSpacing: '0.15em' }}>
+            🕉 {getLocalizedText(footer.footerText?.blessing) || t.footerBlessing || 'Jai Shree Ram'} 🕉
+          </span>
+        </div>
+
+        {/* Main Footer Content */}
+        <div className="max-w-7xl mx-auto px-6 py-12 lg:py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+            {/* Brand Column */}
+            <div className="lg:col-span-1">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`${getLogoShapeClass()} bg-gradient-to-br from-vermilion to-maroon-deep text-white flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg shadow-vermilion/20`}>
+                  {logoPhoto ? (
+                    <img src={logoPhoto} alt="Logo" className="w-full h-full object-cover" />
+                  ) : (
+                    <Sun size={footer.logoSize === 'lg' ? 28 : footer.logoSize === 'sm' ? 16 : 22} />
+                  )}
+                </div>
+                <div>
+                  <span className={`font-serif font-bold text-lg block leading-tight drop-shadow-lg ${isDarkBg ? 'text-white' : 'text-ink'}`}>
+                    {logoText}
+                  </span>
+                  <span className={`text-xs drop-shadow ${isDarkBg ? 'text-white/70' : 'text-ink-soft'}`}>
+                    Gaushala, Kathmandu
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="font-serif font-bold text-lg text-ink block leading-tight">{logoText}</span>
-                <span className="text-xs text-ink-soft">Gaushala, Kathmandu</span>
-              </div>
-            </div>
-            
-            <p className="text-sm text-ink-soft leading-relaxed mt-3 max-w-sm">
-              {t.footerDescription || 'A sacred Vaishnava temple dedicated to Lord Ram, Sita, and Lakshman, serving devotees for generations on the banks of the Bagmati River.'}
-            </p>
+              
+              <p className={`text-sm leading-relaxed mt-3 max-w-sm drop-shadow ${isDarkBg ? 'text-white/80' : 'text-ink-soft'}`}>
+                {t.footerDescription || 'A sacred Vaishnava temple dedicated to Lord Ram, Sita, and Lakshman, serving devotees for generations on the banks of the Bagmati River.'}
+              </p>
 
-            {/* Temple Timings */}
-            <div className="mt-4 flex items-center gap-2 text-sm text-ink-soft">
-              <Clock size={16} className="text-vermilion" />
-              <span>
-                <span className="font-medium text-ink">{t.openHours || 'Darshan'}:</span> {timings.open} – {timings.close}
-              </span>
-            </div>
-
-            {/* Social Links */}
-            <div className="flex items-center gap-2 mt-5">
-              {socialLinks.map((social, index) => {
-                const Icon = social.icon;
-                return (
-                  <a
-                    key={index}
-                    href={social.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-9 h-9 rounded-full bg-gray-50 hover:bg-vermilion/10 text-ink-soft hover:text-vermilion flex items-center justify-center transition-all duration-300 border border-gray-100 hover:border-vermilion/20"
-                    aria-label={social.label}
-                  >
-                    <Icon size={16} />
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Quick Links */}
-          <div>
-            <h5 className="text-xs font-extrabold text-ink uppercase tracking-wider mb-4">
-              {t.quickLinks || 'Quick Links'}
-            </h5>
-            <ul className="space-y-2.5">
-              {quickLinks.map((link) => (
-                <li key={link.path}>
-                  <Link
-                    to={link.path}
-                    className="text-sm text-ink-soft hover:text-vermilion transition-colors duration-200 flex items-center gap-1.5 group"
-                  >
-                    <ArrowRight size={12} className="opacity-0 group-hover:opacity-100 transition-all -ml-4 group-hover:ml-0" />
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Contact Info */}
-          <div>
-            <h5 className="text-xs font-extrabold text-ink uppercase tracking-wider mb-4">
-              {t.contactInfo || 'Contact Info'}
-            </h5>
-            <ul className="space-y-3.5">
-              <li className="flex items-start gap-3">
-                <MapPin size={18} className="text-vermilion flex-shrink-0 mt-0.5" />
-                <span className="text-sm text-ink-soft leading-relaxed">
-                  {t.templeAddressLine || 'Battisputali, Gaushala, Kathmandu, Nepal'}
+              <div className={`mt-4 flex items-center gap-2 text-sm ${isDarkBg ? 'text-white/80' : 'text-ink-soft'}`}>
+                <Clock size={16} className="text-marigold" />
+                <span>
+                  <span className={`font-medium ${isDarkBg ? 'text-white' : 'text-ink'}`}>{t.openHours || 'Darshan'}:</span> {timings.open} – {timings.close}
                 </span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Phone size={18} className="text-vermilion flex-shrink-0" />
-                <span className="text-sm text-ink-soft">+977-1-4XXXXXX</span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Mail size={18} className="text-vermilion flex-shrink-0" />
-                <span className="text-sm text-ink-soft">info@ramchandratemple.org.np</span>
-              </li>
-            </ul>
+              </div>
+
+              {/* WhatsApp Button - Only social/communication button */}
+              <div className="mt-5">
+                <a
+                  href="https://wa.me/9779851154432?text=Namaste!%20I%20want%20to%20know%20more%20about%20Shree%20Ramchandra%20Temple"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all duration-300 hover:scale-105 ${
+                    isDarkBg 
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30' 
+                      : 'bg-green-50 text-green-600 border border-green-200 hover:bg-green-100'
+                  }`}
+                >
+                  <MessageCircle size={16} />
+                  <span>Chat on WhatsApp</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Navigation Buttons - Clean, No Icons */}
+            {footer.showQuickLinks !== false && navButtons && navButtons.length > 0 && (
+              <div>
+                <h5 className={`text-xs font-extrabold uppercase tracking-wider mb-4 drop-shadow flex items-center gap-2 ${isDarkBg ? 'text-white' : 'text-ink'}`}>
+                  <Compass size={14} className="text-marigold" />
+                  {t.navigation || 'Quick Navigation'}
+                </h5>
+                <div className="grid grid-cols-2 gap-2">
+                  {navButtons.map((btn, index) => (
+                    <Link
+                      key={index}
+                      to={btn.path}
+                      className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all duration-300 ${
+                        isDarkBg 
+                          ? 'bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/5 hover:border-white/20' 
+                          : 'bg-gray-50/50 hover:bg-white text-ink-soft hover:text-ink border border-gray-100 hover:border-gray-200'
+                      }`}
+                    >
+                      <span className="relative z-10">{getLocalizedText(btn.label)}</span>
+                      {/* ArrowRight removed - replaced with subtle hover effect only */}
+                      <span className={`w-2 h-0.5 rounded-full transition-all duration-300 ${isDarkBg ? 'bg-white/20 group-hover:bg-white/50' : 'bg-gray-300 group-hover:bg-vermilion'}`} />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Contact Info - Modern with icons */}
+            {footer.showContact !== false && (
+              <div>
+                <h5 className={`text-xs font-extrabold uppercase tracking-wider mb-4 drop-shadow flex items-center gap-2 ${isDarkBg ? 'text-white' : 'text-ink'}`}>
+                  <MapPinned size={14} className="text-marigold" />
+                  {t.contactInfo || 'Get in Touch'}
+                </h5>
+                <ul className="space-y-3.5">
+                  <li className="flex items-start gap-3 group cursor-pointer">
+                    <div className={`p-2 rounded-xl transition-all duration-300 group-hover:scale-110 ${isDarkBg ? 'bg-white/10 group-hover:bg-white/20' : 'bg-vermilion/10 group-hover:bg-vermilion/20'}`}>
+                      <MapPin size={16} className="text-marigold" />
+                    </div>
+                    <span className={`text-sm leading-relaxed ${isDarkBg ? 'text-white/70 group-hover:text-white' : 'text-ink-soft group-hover:text-ink'}`}>
+                      {getLocalizedText(footer.contactInfo?.address) || 'Battisputali, Gaushala, Kathmandu, Nepal'}
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-3 group cursor-pointer">
+                    <div className={`p-2 rounded-xl transition-all duration-300 group-hover:scale-110 ${isDarkBg ? 'bg-white/10 group-hover:bg-white/20' : 'bg-vermilion/10 group-hover:bg-vermilion/20'}`}>
+                      <PhoneForwarded size={16} className="text-marigold" />
+                    </div>
+                    <span className={`text-sm ${isDarkBg ? 'text-white/70 group-hover:text-white' : 'text-ink-soft group-hover:text-ink'}`}>
+                      {footer.contactInfo?.phone || '+977-1-4XXXXXX'}
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-3 group cursor-pointer">
+                    <div className={`p-2 rounded-xl transition-all duration-300 group-hover:scale-110 ${isDarkBg ? 'bg-white/10 group-hover:bg-white/20' : 'bg-vermilion/10 group-hover:bg-vermilion/20'}`}>
+                      <MailOpen size={16} className="text-marigold" />
+                    </div>
+                    <span className={`text-sm ${isDarkBg ? 'text-white/70 group-hover:text-white' : 'text-ink-soft group-hover:text-ink'}`}>
+                      {footer.contactInfo?.email || 'info@ramchandratemple.org.np'}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            {/* Subscribe & Map Section */}
+            <div className="space-y-6">
+              {/* Subscribe Section */}
+              {footer.showSubscribe !== false && (
+                <div>
+                  <h5 className={`text-xs font-extrabold uppercase tracking-wider mb-4 drop-shadow flex items-center gap-2 ${isDarkBg ? 'text-white' : 'text-ink'}`}>
+                    <Send size={14} className="text-marigold" />
+                    {t.subscribe || 'Stay Updated'}
+                  </h5>
+                  {isSubscribed ? (
+                    <div className={`text-sm ${isDarkBg ? 'text-green-400' : 'text-green-600'} flex items-center gap-2 p-3 rounded-xl ${isDarkBg ? 'bg-white/5' : 'bg-green-50'}`}>
+                      <span>✅</span> {t.subscribed || 'Subscribed successfully!'}
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSubscribe} className="space-y-3">
+                      <div className="relative">
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder={t.enterEmail || 'Enter your email...'}
+                          className={`w-full px-4 py-3 pr-12 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-vermilion transition-all duration-300 ${
+                            isDarkBg 
+                              ? 'bg-white/10 text-white placeholder-white/50 border border-white/20 focus:border-white/40' 
+                              : 'bg-white border border-gray-200 text-ink placeholder-ink-soft focus:border-vermilion'
+                          }`}
+                          required
+                        />
+                        <button
+                          type="submit"
+                          disabled={subscribing}
+                          className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all duration-300 ${
+                            isDarkBg 
+                              ? 'bg-marigold/20 text-marigold hover:bg-marigold/30' 
+                              : 'bg-vermilion/10 text-vermilion hover:bg-vermilion/20'
+                          } disabled:opacity-50`}
+                        >
+                          {subscribing ? (
+                            <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
+                          ) : (
+                            <Send size={16} />
+                          )}
+                        </button>
+                      </div>
+                      <p className={`text-xs ${isDarkBg ? 'text-white/40' : 'text-ink-soft/60'}`}>
+                        {t.subscribeInfo || 'Get important updates about events and temple news.'}
+                      </p>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {/* Map Section */}
+              {footer.showMap !== false && footer.mapUrl && (
+                <div>
+                  <h5 className={`text-xs font-extrabold uppercase tracking-wider mb-3 drop-shadow flex items-center gap-2 ${isDarkBg ? 'text-white' : 'text-ink'}`}>
+                    <Map size={14} className="text-marigold" />
+                    {t.location || 'Find Us'}
+                  </h5>
+                  <div className={`rounded-xl overflow-hidden border ${isDarkBg ? 'border-white/10' : 'border-gray-200'} shadow-lg`}>
+                    <iframe
+                      src={footer.mapUrl}
+                      className="w-full h-48"
+                      style={{ border: 0 }}
+                      allowFullScreen=""
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      title="Temple Location"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
+        </div>
 
-          {/* Newsletter / Donate CTA */}
-          <div>
-            <h5 className="text-xs font-extrabold text-ink uppercase tracking-wider mb-4">
-              {t.support || 'Support Us'}
-            </h5>
-            <p className="text-sm text-ink-soft leading-relaxed mb-4">
-              {t.footerDonateText || 'Help us preserve this sacred place for generations to come.'}
-            </p>
-            <Link
-              to="/donate"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-vermilion text-white font-semibold text-sm hover:bg-[#a83a0c] transition-all shadow-lg shadow-vermilion/20 hover:shadow-xl hover:-translate-y-0.5"
-            >
-              <Heart size={16} />
-              {t.navDonate || 'Donate Now'}
-            </Link>
+        {/* Bottom Bar - Modern Minimal - No ChevronUp icon */}
+        <div className={`border-t ${isDarkBg ? 'border-white/10 bg-black/20' : 'border-gray-100 bg-gray-50/50'}`}>
+          <div className="max-w-7xl mx-auto px-6 py-6">
+            <div className="flex flex-col items-center justify-center gap-4">
+              {/* Copyright */}
+              <p className={`text-sm font-medium ${isDarkBg ? 'text-white/70' : 'text-ink-soft'}`}>
+                © {currentYear} {logoText}. All rights reserved.
+              </p>
+              
+              {/* Made By - No arrow icons */}
+              <div className="flex items-center gap-3">
+                <span className={`text-xs ${isDarkBg ? 'text-white/40' : 'text-ink-soft/40'}`}>Made with ❤️ by</span>
+                <a
+                  href="https://www.zeroinfinitytechnologies.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-2 text-sm font-semibold transition-all duration-300 group ${
+                    isDarkBg ? 'text-white/80 hover:text-white' : 'text-ink-soft hover:text-ink'
+                  }`}
+                >
+                  <img 
+                    src="https://zeroinfinitytechnologies.com/images/logo-1771865164119.webp?t=1784551924378"
+                    alt="ZeroInfinity"
+                    className="h-5 w-auto transition-transform duration-300 group-hover:scale-110"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <span>ZeroInfinity Technology</span>
+                </a>
+              </div>
 
-            {/* Quick stats */}
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <div className="flex items-center gap-4 text-xs text-ink-soft">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span>{t.footerOnline || 'Online'} 24/7</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span>{t.footerSecure || 'Secure'}</span>
-                </div>
+              {/* Legal Links */}
+              <div className="flex items-center gap-4 text-xs">
+                <Link 
+                  to="/privacy" 
+                  className={`transition-all duration-300 ${isDarkBg ? 'text-white/40 hover:text-white' : 'text-ink-soft/40 hover:text-ink'}`}
+                >
+                  Privacy Policy
+                </Link>
+                <span className={`w-px h-4 ${isDarkBg ? 'bg-white/20' : 'bg-gray-200'}`} />
+                <Link 
+                  to="/terms" 
+                  className={`transition-all duration-300 ${isDarkBg ? 'text-white/40 hover:text-white' : 'text-ink-soft/40 hover:text-ink'}`}
+                >
+                  Terms of Service
+                </Link>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Bottom Bar */}
-      <div className="border-t border-gray-100 bg-gray-50/50">
-        <div className="max-w-7xl mx-auto px-6 py-5">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-ink-soft/70">
-              © {currentYear} {logoText}. {t.rightsReserved || 'All rights reserved.'}
-            </p>
-            <div className="flex items-center gap-4 text-xs text-ink-soft/70">
-              <Link to="/privacy" className="hover:text-vermilion transition-colors">
-                {t.privacy || 'Privacy Policy'}
-              </Link>
-              <span className="w-px h-4 bg-gray-200" />
-              <Link to="/terms" className="hover:text-vermilion transition-colors">
-                {t.terms || 'Terms of Service'}
-              </Link>
-              <span className="w-px h-4 bg-gray-200" />
-              <span className="flex items-center gap-1">
-                <span>🕉</span>
-                <span>{t.footerBlessing || 'Jai Shree Ram'}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Hidden element to detect footer presence for scroll button */}
+      <div id="footer-detector" className="h-0.5 w-full opacity-0 pointer-events-none" />
     </footer>
   );
 };

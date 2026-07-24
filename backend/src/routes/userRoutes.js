@@ -125,6 +125,62 @@ router.delete('/profile-photo', protect, async (req, res) => {
   }
 });
 
+// @desc    Change password
+// @route   PUT /api/users/password
+// @access  Private
+router.put('/password', protect, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.user.id).select('+password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Check current password
+    const isPasswordValid = await user.comparePassword(currentPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+    
+    // Update password
+    user.password = newPassword;
+    await user.save();
+    
+    res.json({ 
+      success: true, 
+      message: 'Password changed successfully' 
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @desc    Get user stats (bookings count, donations count)
+// @route   GET /api/users/stats
+// @access  Private
+router.get('/stats', protect, async (req, res) => {
+  try {
+    // Import models dynamically to avoid circular dependency
+    const Booking = require('../models/Booking');
+    const Donation = require('../models/Donation');
+    
+    const [bookings, donations] = await Promise.all([
+      Booking.countDocuments({ userId: req.user.id }),
+      Donation.countDocuments({ userId: req.user.id }),
+    ]);
+    
+    res.json({
+      totalBookings: bookings,
+      totalDonations: donations,
+    });
+  } catch (error) {
+    console.error('Get user stats error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // @desc    Delete user (admin only)
 // @route   DELETE /api/users/:id
 // @access  Private/Admin
@@ -140,6 +196,43 @@ router.delete('/:id', protect, async (req, res) => {
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
     console.error('Delete user error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// @desc    Update user role (admin only)
+// @route   PUT /api/users/:id/role
+// @access  Private/Admin
+router.put('/:id/role', protect, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized' });
+    }
+    
+    const { id } = req.params;
+    const { role } = req.body;
+    
+    if (!role || !['user', 'admin'].includes(role)) {
+      return res.status(400).json({ message: 'Invalid role. Must be "user" or "admin"' });
+    }
+    
+    const user = await User.findByIdAndUpdate(
+      id, 
+      { role }, 
+      { new: true, select: '-password' }
+    );
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      user,
+      message: `User role updated to ${role} successfully` 
+    });
+  } catch (error) {
+    console.error('Update user role error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

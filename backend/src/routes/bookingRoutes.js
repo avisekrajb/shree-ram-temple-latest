@@ -3,6 +3,7 @@ const router = express.Router();
 const protect = require('../middleware/auth');
 const Booking = require('../models/Booking');
 const User = require('../models/User');
+const AdminSettings = require('../models/AdminSettings');
 const { sendBookingConfirmation } = require('../services/emailService');
 
 // @desc    Create booking
@@ -10,8 +11,46 @@ const { sendBookingConfirmation } = require('../services/emailService');
 // @access  Private
 router.post('/', protect, async (req, res) => {
   try {
-    const { name, phone, date, type } = req.body;
+    // Check if booking is available
+    const settings = await AdminSettings.getSettings();
+    if (settings.bookingAvailable === false) {
+      return res.status(403).json({ 
+        message: settings.availabilityMessage || 'Bookings are currently unavailable' 
+      });
+    }
+
+    const { name, phone, date, type, description } = req.body;
     const user = await User.findById(req.user.id);
+
+    // Validate date - cannot book past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const bookingDate = new Date(date);
+    bookingDate.setHours(0, 0, 0, 0);
+    
+    if (bookingDate < today) {
+      return res.status(400).json({ 
+        message: 'Cannot book for past dates. Please select a future date.' 
+      });
+    }
+
+    // Check date limit
+    if (settings.dateLimits && settings.dateLimits[date] !== undefined) {
+      const limit = settings.dateLimits[date];
+      // If limit is 0 or less, prevent booking
+      if (limit <= 0) {
+        return res.status(400).json({ 
+          message: `Booking limit reached for ${date}. No slots available.` 
+        });
+      }
+      
+      const bookingsCount = await Booking.countDocuments({ date });
+      if (bookingsCount >= limit) {
+        return res.status(400).json({ 
+          message: `Booking limit reached for ${date}. Maximum ${limit} bookings allowed.` 
+        });
+      }
+    }
 
     const booking = await Booking.create({
       userId: req.user.id,
@@ -20,6 +59,7 @@ router.post('/', protect, async (req, res) => {
       email: user.email,
       date,
       type,
+      description: description || '',
       status: 'pending',
     });
 
@@ -28,7 +68,6 @@ router.post('/', protect, async (req, res) => {
       await sendBookingConfirmation(booking, user);
     } catch (emailError) {
       console.error('Email error:', emailError);
-      // Don't fail the request if email fails
     }
 
     res.status(201).json(booking);

@@ -1,3 +1,6 @@
+// frontend/src/services/auth.js
+
+// Token management
 export const getToken = () => {
   try {
     return localStorage.getItem('token');
@@ -22,6 +25,7 @@ export const removeToken = () => {
   }
 };
 
+// User management
 export const getUser = () => {
   try {
     const user = localStorage.getItem('user');
@@ -47,6 +51,7 @@ export const removeUser = () => {
   }
 };
 
+// Language management
 export const getLanguage = () => {
   try {
     return localStorage.getItem('lang') || 'en';
@@ -60,5 +65,24 @@ export const setLanguage = (lang) => {
     localStorage.setItem('lang', lang);
   } catch (error) {
     console.error('Error saving language:', error);
+  }
+};
+
+// Check if user is logged in
+export const isLoggedIn = () => {
+  try {
+    return !!localStorage.getItem('token') && !!localStorage.getItem('user');
+  } catch {
+    return false;
+  }
+};
+
+// Clear all auth data
+export const clearAuthData = () => {
+  try {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  } catch (error) {
+    console.error('Error clearing auth data:', error);
   }
 };

@@ -178,10 +178,10 @@ function ActivitiesSection({ activities, lang }) {
   }
 
   return (
-    <section className="border-t border-line">
+    <section className="py-16">
       <div
         ref={titleRef}
-        className="max-w-4xl mx-auto px-6 pt-20 pb-10 text-center"
+        className="max-w-4xl mx-auto px-6 text-center mb-12"
       >
         <div className="flex items-center justify-center gap-4 mb-4">
           <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-300" />
@@ -196,7 +196,7 @@ function ActivitiesSection({ activities, lang }) {
         </h2>
       </div>
 
-      <div className="border-t border-line">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6">
         {activityKeys.map((key, index) => {
           const activity = activities[key];
           const isEven = index % 2 === 0;
@@ -212,13 +212,13 @@ function ActivitiesSection({ activities, lang }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-60px" }}
               transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
-              className={`border-b border-line py-12 px-6 sm:px-10 lg:px-16 ${isEven ? "" : "bg-[#faf7f4]"}`}
+              className={`py-12 px-6 sm:px-10 lg:px-16 ${isEven ? "" : "bg-[#faf7f4]"} rounded-xl ${index > 0 ? "mt-6" : ""}`}
             >
-              <div className="max-w-4xl mx-auto">
-                <div className="flex items-baseline gap-5 mb-5">
+              <div className="max-w-5xl mx-auto">
+                <div className="flex items-baseline gap-4 mb-4">
                   <span
                     className="text-xs tracking-widest text-mute shrink-0"
-                    style={{ fontFamily: "serif", minWidth: "2rem" }}
+                    style={{ fontFamily: "serif", minWidth: "2.5rem" }}
                   >
                     {String(index + 1).padStart(2, "0")}
                   </span>
@@ -230,14 +230,9 @@ function ActivitiesSection({ activities, lang }) {
                   </h3>
                 </div>
 
-                <div
-                  className="mb-6 ml-9"
-                  style={{ height: 1, background: "var(--color-line, #e5e0d8)", maxWidth: 480 }}
-                />
-
-                <div className="ml-9 max-w-2xl">
+                <div className="ml-10 max-w-3xl">
                   {isDaily && activity.paragraphs ? (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {Object.keys(activity.paragraphs).map((pKey) => {
                         const paraText = getLocalizedText(activity.paragraphs[pKey], lang);
                         return (
@@ -458,7 +453,7 @@ const AboutPage = () => {
         intro={aboutIntro} 
       />
 
-      {/* Sections */}
+      {/* Sections - Removed borders */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-20 space-y-24">
         {sections.map((section, index) => (
           <AboutSection
@@ -469,21 +464,20 @@ const AboutPage = () => {
         ))}
       </div>
 
-      {/* Activities */}
+      {/* Activities - Properly aligned */}
       <ActivitiesSection 
         activities={activities} 
         lang={lang}
       />
 
-      {/* Bottom CTA */}
-      <div className="border-t border-slate-200 bg-slate-50">
+      {/* Bottom CTA - Removed Jai Shree Ram and border */}
+      <div className="bg-slate-50">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="max-w-3xl mx-auto px-6 py-12 text-center"
         >
-          <p className="text-slate-500 text-base mb-4">🕉 Jai Shree Ram</p>
           <p className="font-serif text-2xl font-semibold text-red-900">
             Shree Ramchandra Temple — A Living Heritage
           </p>

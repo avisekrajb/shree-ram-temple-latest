@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../hooks/useToast';
+import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import PageHero from '../components/common/PageHero';
 import { 
   Mail, Phone, MapPin, User, ClipboardList, Gift, LogOut, 
-  ChevronRight, Camera, Upload, X, Check 
+  ChevronRight, Camera, Upload, X, Check, AlertCircle 
 } from 'lucide-react';
 
 const ProfilePage = () => {
@@ -28,7 +28,11 @@ const ProfilePage = () => {
     profilePhoto: user?.profilePhoto || null,
   });
   const [tempPhoto, setTempPhoto] = useState(null);
+  const [errors, setErrors] = useState({});
   const fetched = useRef(false);
+
+  // Check if user is a Google user (missing phone or address)
+  const isGoogleUser = !user?.phone || !user?.address || user?.phone === '' || user?.address === '';
 
   useEffect(() => {
     if (fetched.current) return;
@@ -60,15 +64,13 @@ const ProfilePage = () => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
-      showToast('Please upload an image file');
+      showToast('Please upload an image file', 'error');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Image must be less than 5MB');
+      showToast('Image must be less than 5MB', 'error');
       return;
     }
 
@@ -81,22 +83,41 @@ const ProfilePage = () => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       
-      // Update user data
       const updatedUser = { ...user, profilePhoto: response.data.url };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setProfileData({ ...profileData, profilePhoto: response.data.url });
-      showToast('Profile photo updated successfully');
+      showToast('Profile photo updated successfully', 'success');
     } catch (error) {
       console.error('Upload error:', error);
-      showToast(error.response?.data?.message || 'Upload failed');
+      showToast(error.response?.data?.message || 'Upload failed', 'error');
     } finally {
       setUploading(false);
       e.target.value = '';
     }
   };
 
+  const validateProfile = () => {
+    const newErrors = {};
+    if (!profileData.name || profileData.name.trim().length < 2) {
+      newErrors.name = 'Name is required';
+    }
+    if (!profileData.phone || profileData.phone.trim().length < 10) {
+      newErrors.phone = 'Valid phone number is required';
+    }
+    if (!profileData.address || profileData.address.trim().length < 3) {
+      newErrors.address = 'Address is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSaveProfile = async () => {
+    if (!validateProfile()) {
+      showToast('Please fill in all required fields', 'error');
+      return;
+    }
+
     setUploading(true);
     try {
       const response = await api.put('/users/profile', {
@@ -105,15 +126,15 @@ const ProfilePage = () => {
         address: profileData.address,
       });
       
-      // Update user data
       const updatedUser = { ...user, ...response.data };
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setEditing(false);
-      showToast(t.savedSuccess || 'Profile updated');
+      setErrors({});
+      showToast(t.savedSuccess || 'Profile updated successfully', 'success');
     } catch (error) {
       console.error('Save profile error:', error);
-      showToast(error.response?.data?.message || 'Failed to update profile');
+      showToast(error.response?.data?.message || 'Failed to update profile', 'error');
     } finally {
       setUploading(false);
     }
@@ -128,10 +149,10 @@ const ProfilePage = () => {
       localStorage.setItem('user', JSON.stringify(updatedUser));
       setUser(updatedUser);
       setProfileData({ ...profileData, profilePhoto: null });
-      showToast('Profile photo removed');
+      showToast('Profile photo removed', 'success');
     } catch (error) {
       console.error('Remove photo error:', error);
-      showToast('Failed to remove photo');
+      showToast('Failed to remove photo', 'error');
     } finally {
       setUploading(false);
     }
@@ -150,6 +171,25 @@ const ProfilePage = () => {
       <PageHero title={t.myProfile} sub={t.profileDetails} />
 
       <section className="max-w-2xl mx-auto px-6 py-12">
+        {/* Google User Notice */}
+        {isGoogleUser && !editing && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+            <AlertCircle size={20} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-amber-700">Complete Your Profile</p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Please add your phone number and address to complete your profile.
+              </p>
+              <button
+                onClick={() => setEditing(true)}
+                className="mt-2 text-xs font-semibold text-vermilion hover:text-[#a83a0c] transition-colors"
+              >
+                Add Details Now →
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Profile Card with Photo */}
         <div className="bg-white border border-line rounded-rt p-6 shadow-rt text-center">
           <div className="relative inline-block">
@@ -200,6 +240,11 @@ const ProfilePage = () => {
           <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-panel text-maroon">
             <User size={11} /> {t.profile}
           </span>
+          {user?.isGoogleUser && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-600 ml-2">
+              Google
+            </span>
+          )}
           {uploading && (
             <div className="mt-2 text-xs text-ink-soft">Uploading...</div>
           )}
@@ -235,6 +280,7 @@ const ProfilePage = () => {
                 <button
                   onClick={() => {
                     setEditing(false);
+                    setErrors({});
                     setProfileData({
                       name: user?.name || '',
                       phone: user?.phone || '',
@@ -262,12 +308,19 @@ const ProfilePage = () => {
             <div className="flex-1">
               <span className="text-[10px] uppercase text-ink-soft block">{t.fullName}</span>
               {editing ? (
-                <input
-                  type="text"
-                  value={profileData.name}
-                  onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                  className="w-full text-sm font-medium border border-line rounded-lg px-2 py-1 focus:border-vermilion focus:outline-none"
-                />
+                <>
+                  <input
+                    type="text"
+                    value={profileData.name}
+                    onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
+                    className={`w-full text-sm font-medium border rounded-lg px-2 py-1 focus:outline-none ${
+                      errors.name ? 'border-red-500 focus:border-red-500' : 'border-line focus:border-vermilion'
+                    }`}
+                  />
+                  {errors.name && (
+                    <span className="text-xs text-red-500 mt-1 block">{errors.name}</span>
+                  )}
+                </>
               ) : (
                 <strong className="text-sm">{user?.name}</strong>
               )}
@@ -287,12 +340,20 @@ const ProfilePage = () => {
             <div className="flex-1">
               <span className="text-[10px] uppercase text-ink-soft block">{t.phone}</span>
               {editing ? (
-                <input
-                  type="tel"
-                  value={profileData.phone}
-                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                  className="w-full text-sm font-medium border border-line rounded-lg px-2 py-1 focus:border-vermilion focus:outline-none"
-                />
+                <>
+                  <input
+                    type="tel"
+                    value={profileData.phone}
+                    onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                    className={`w-full text-sm font-medium border rounded-lg px-2 py-1 focus:outline-none ${
+                      errors.phone ? 'border-red-500 focus:border-red-500' : 'border-line focus:border-vermilion'
+                    }`}
+                    placeholder="Enter your phone number"
+                  />
+                  {errors.phone && (
+                    <span className="text-xs text-red-500 mt-1 block">{errors.phone}</span>
+                  )}
+                </>
               ) : (
                 <strong className="text-sm">{user?.phone || '—'}</strong>
               )}
@@ -304,17 +365,35 @@ const ProfilePage = () => {
             <div className="flex-1">
               <span className="text-[10px] uppercase text-ink-soft block">{t.address}</span>
               {editing ? (
-                <input
-                  type="text"
-                  value={profileData.address}
-                  onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
-                  className="w-full text-sm font-medium border border-line rounded-lg px-2 py-1 focus:border-vermilion focus:outline-none"
-                />
+                <>
+                  <input
+                    type="text"
+                    value={profileData.address}
+                    onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
+                    className={`w-full text-sm font-medium border rounded-lg px-2 py-1 focus:outline-none ${
+                      errors.address ? 'border-red-500 focus:border-red-500' : 'border-line focus:border-vermilion'
+                    }`}
+                    placeholder="Enter your address"
+                  />
+                  {errors.address && (
+                    <span className="text-xs text-red-500 mt-1 block">{errors.address}</span>
+                  )}
+                </>
               ) : (
                 <strong className="text-sm">{user?.address || '—'}</strong>
               )}
             </div>
           </div>
+
+          {/* Google User Info Note */}
+          {isGoogleUser && !editing && (
+            <div className="mt-3 pt-3 border-t border-dashed border-line">
+              <p className="text-xs text-ink-soft flex items-center gap-1.5">
+                <AlertCircle size={12} className="text-amber-500" />
+                Please add your phone and address to complete your profile.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

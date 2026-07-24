@@ -2,16 +2,327 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useToast } from '../../context/ToastContext';
-import { Mail, Lock, Eye, EyeOff, MapPin, Phone, User, X, Sparkles } from 'lucide-react';
+import api from '../../services/api';
+import { 
+  Mail, Lock, Eye, EyeOff, MapPin, Phone, User, X, Sparkles, 
+  ArrowLeft, Check, Sun 
+} from 'lucide-react';
 
+// Google Sign-In Component
+const GoogleSignIn = ({ onSuccess, onError }) => {
+  const { t } = useLanguage();
+  const [loading, setLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    try {
+      const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+      
+      if (!clientId) {
+        const mockUser = {
+          email: 'user@gmail.com',
+          name: 'Google User',
+          profilePhoto: 'https://ui-avatars.com/api/?name=Google+User&background=7A1F2B&color=fff',
+          googleId: 'mock_google_id_123',
+        };
+        onSuccess(mockUser);
+        setLoading(false);
+        return;
+      }
+
+      const loadGoogleScript = () => {
+        return new Promise((resolve) => {
+          if (window.google) {
+            resolve();
+            return;
+          }
+          const script = document.createElement('script');
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.async = true;
+          script.defer = true;
+          script.onload = resolve;
+          script.onerror = () => {
+            onError('Failed to load Google Sign-In library');
+            setLoading(false);
+          };
+          document.body.appendChild(script);
+        });
+      };
+
+      await loadGoogleScript();
+
+      const google = window.google;
+      if (!google) {
+        onError('Google Sign-In library not loaded');
+        setLoading(false);
+        return;
+      }
+
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'email profile',
+        callback: async (response) => {
+          try {
+            if (response.error) {
+              onError(response.error_description || 'Google Sign-In failed');
+              setLoading(false);
+              return;
+            }
+            const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: {
+                Authorization: `Bearer ${response.access_token}`,
+              },
+            });
+            if (!userInfoResponse.ok) {
+              throw new Error('Failed to fetch user info');
+            }
+            const userInfo = await userInfoResponse.json();
+            onSuccess({
+              email: userInfo.email,
+              name: userInfo.name,
+              profilePhoto: userInfo.picture,
+              googleId: userInfo.sub,
+            });
+          } catch (error) {
+            onError(error.message || 'Failed to fetch Google user info');
+          }
+          setLoading(false);
+        },
+        error_callback: (error) => {
+          console.error('Google OAuth error:', error);
+          onError(error?.error_description || 'Google Sign-In cancelled or failed');
+          setLoading(false);
+        },
+      });
+
+      client.requestAccessToken();
+    } catch (error) {
+      console.error('Google Sign-In error:', error);
+      onError(error.message || 'Google Sign-In failed');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleGoogleSignIn}
+      disabled={loading}
+      className="w-full py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold text-sm hover:bg-gray-50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+    >
+      <svg className="w-5 h-5" viewBox="0 0 48 48">
+        <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+        <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+        <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+        <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
+      </svg>
+      {loading ? 'Loading...' : 'Sign in with Google'}
+    </button>
+  );
+};
+
+// OTP Modal Component
+const OtpModal = ({ email, onBack, onVerify, onResetPassword, isOpen }) => {
+  const { t } = useLanguage();
+  const [otp, setOtp] = useState(['', '', '', '']);
+  const [loading, setLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState('otp');
+  const [error, setError] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleOtpChange = (index, value) => {
+    if (value.length > 1) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    if (value && index < 3) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      if (nextInput) nextInput.focus();
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    const otpString = otp.join('');
+    if (otpString.length !== 4) {
+      setError('Please enter the 4-digit OTP');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      await onVerify(email, otpString);
+      setStep('reset');
+    } catch (error) {
+      setError(error.message || 'Invalid OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      await onResetPassword(newPassword);
+    } catch (error) {
+      setError(error.message || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {step === 'otp' ? (
+        <>
+          <div className="flex items-center gap-3 mb-2">
+            <button
+              onClick={onBack}
+              className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <ArrowLeft size={18} />
+            </button>
+            <h4 className="text-lg font-serif font-semibold text-ink">Enter OTP</h4>
+          </div>
+          <p className="text-sm text-ink-soft">
+            Enter the 4-digit OTP sent to <strong>{email}</strong>
+          </p>
+
+          <div className="flex justify-center gap-3 my-4">
+            {[0, 1, 2, 3].map((index) => (
+              <input
+                key={index}
+                id={`otp-${index}`}
+                type="text"
+                maxLength={1}
+                value={otp[index]}
+                onChange={(e) => handleOtpChange(index, e.target.value)}
+                className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-200 rounded-xl focus:border-vermilion focus:outline-none transition-colors bg-gray-50"
+                autoFocus={index === 0}
+              />
+            ))}
+          </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-500 px-4 py-2.5 rounded-lg text-sm font-semibold">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleVerifyOtp}
+            disabled={loading}
+            className="w-full py-3 rounded-full bg-vermilion text-white font-semibold text-sm hover:bg-[#a83a0c] transition-all disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Verifying...
+              </span>
+            ) : (
+              'Verify OTP'
+            )}
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 mb-2">
+            <Check size={20} className="text-green-500" />
+            <h4 className="text-lg font-serif font-semibold text-ink">Reset Password</h4>
+          </div>
+          <p className="text-sm text-ink-soft">Enter your new password</p>
+
+          <div>
+            <label className="text-xs font-bold text-ink block mb-1.5">New Password</label>
+            <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+              <Lock size={16} className="text-ink-soft flex-shrink-0" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                required
+                minLength="6"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-ink-soft hover:text-ink"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-ink block mb-1.5">Confirm Password</label>
+            <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+              <Lock size={16} className="text-ink-soft flex-shrink-0" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                required
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 text-red-500 px-4 py-2.5 rounded-lg text-sm font-semibold">
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleResetPassword}
+            disabled={loading}
+            className="w-full py-3 rounded-full bg-vermilion text-white font-semibold text-sm hover:bg-[#a83a0c] transition-all disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Resetting...
+              </span>
+            ) : (
+              'Reset Password'
+            )}
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
+
+// Main Auth Modal
 const AuthModal = ({ open, onClose, onSuccess, setForgotModal }) => {
   const { t } = useLanguage();
-  const { login, signup } = useAuth();
+  const { login, signup, googleAuth } = useAuth();
   const { showToast } = useToast();
   const [mode, setMode] = useState('login');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [logoPhoto, setLogoPhoto] = useState(null);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({
@@ -22,12 +333,25 @@ const AuthModal = ({ open, onClose, onSuccess, setForgotModal }) => {
     address: '',
   });
 
-  // Auto-fill admin credentials
+  // Fetch logo from settings
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const response = await api.get('/admin/settings');
+        if (response.data?.logo?.photo) {
+          setLogoPhoto(response.data.logo.photo);
+        }
+      } catch (error) {
+        console.error('Error fetching logo:', error);
+      }
+    };
+    fetchLogo();
+  }, []);
+
   const fillAdmin = () => {
     setLoginData({ email: 'a@gmail.com', password: '123456' });
   };
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
       setError('');
@@ -39,6 +363,7 @@ const AuthModal = ({ open, onClose, onSuccess, setForgotModal }) => {
         phone: '',
         address: '',
       });
+      setShowOtpModal(false);
     }
   }, [open]);
 
@@ -88,12 +413,52 @@ const AuthModal = ({ open, onClose, onSuccess, setForgotModal }) => {
     }
   };
 
+  const handleGoogleSuccess = async (userData) => {
+    try {
+      const result = await googleAuth(userData);
+      if (result.success) {
+        showToast(`Welcome, ${result.user.name}!`, 'success');
+        onSuccess();
+        onClose();
+      } else {
+        setError(result.error || 'Google sign-in failed');
+        showToast(result.error || 'Google sign-in failed', 'error');
+      }
+    } catch (error) {
+      setError('Google sign-in failed');
+      showToast('Google sign-in failed', 'error');
+    }
+  };
+
+  const handleGoogleError = (errorMsg) => {
+    setError(errorMsg);
+    showToast(errorMsg, 'error');
+  };
+
+  const handleForgotPassword = () => {
+    if (!loginData.email && !signupData.email) {
+      setError('Please enter your email first');
+      return;
+    }
+    setOtpEmail(loginData.email || signupData.email);
+    setShowOtpModal(true);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[500] flex items-end md:items-center justify-center p-4 rt-modal-backdrop">
-      <div className="bg-white rounded-2xl md:rounded-2xl max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl rt-modal-sheet md:max-w-[440px]">
-        {/* Header */}
+      <div className="bg-white rounded-t-2xl md:rounded-2xl max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl rt-modal-sheet md:max-w-[440px]">
+        {/* Header with Logo */}
         <div className="flex items-center justify-between p-4 border-b border-line sticky top-0 bg-white z-10 rounded-t-2xl">
-          <h3 className="text-lg font-serif font-bold">{mode === 'login' ? t.login : t.signup}</h3>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-vermilion to-maroon-deep text-white flex items-center justify-center flex-shrink-0 overflow-hidden">
+              {logoPhoto ? (
+                <img src={logoPhoto} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-sm font-bold">🕉</span>
+              )}
+            </div>
+            <span className="font-serif font-bold text-sm text-maroon">Shree Ramchandra</span>
+          </div>
           <button 
             onClick={onClose} 
             className="p-2 rounded-full hover:bg-panel transition-colors"
@@ -103,205 +468,247 @@ const AuthModal = ({ open, onClose, onSuccess, setForgotModal }) => {
         </div>
 
         <div className="p-6">
-          {error && (
-            <div className="bg-red-50 text-red-500 px-4 py-2.5 rounded-lg text-sm font-semibold mb-4">
-              {error}
-            </div>
-          )}
-
-          {mode === 'login' ? (
-            <form onSubmit={handleLogin} className="flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-bold text-ink block mb-1.5">{t.email}</label>
-                <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
-                  <Mail size={16} className="text-ink-soft flex-shrink-0" />
-                  <input
-                    type="email"
-                    value={loginData.email}
-                    onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
-                    placeholder="you@example.com"
-                    className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-ink block mb-1.5">{t.password}</label>
-                <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
-                  <Lock size={16} className="text-ink-soft flex-shrink-0" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={loginData.password}
-                    onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-ink-soft hover:text-ink"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Auto-fill Admin Button */}
-              <button
-                type="button"
-                onClick={fillAdmin}
-                className="text-xs font-semibold text-vermilion bg-vermilion/10 px-3 py-1.5 rounded-full w-fit hover:bg-vermilion/20 transition-colors flex items-center gap-1.5"
-              >
-                <Sparkles size={12} /> Admin Login (a@gmail.com)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setForgotModal(true); onClose(); }}
-                className="text-xs font-bold text-vermilion text-right hover:underline bg-transparent border-0"
-              >
-                {t.forgotPw}
-              </button>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 rounded-full bg-vermilion text-white font-semibold text-sm hover:bg-[#a83a0c] transition-all disabled:opacity-50"
-              >
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Loading...
-                  </span>
-                ) : (
-                  t.login
-                )}
-              </button>
-
-              <p className="text-sm text-ink-soft text-center">
-                {t.noAccount}{' '}
-                <button
-                  type="button"
-                  onClick={() => { setMode('signup'); setError(''); }}
-                  className="text-vermilion font-bold hover:underline bg-transparent border-0"
-                >
-                  {t.signup}
-                </button>
-              </p>
-            </form>
+          {showOtpModal ? (
+            <OtpModal
+              email={otpEmail}
+              onBack={() => setShowOtpModal(false)}
+              onVerify={async (email, otp) => {
+                try {
+                  const response = await api.post('/auth/verify-otp', { email, otp });
+                  if (response.data.success) {
+                    setResetToken(response.data.resetToken);
+                    return true;
+                  }
+                } catch (error) {
+                  throw new Error(error.response?.data?.message || 'Invalid OTP');
+                }
+              }}
+              onResetPassword={async (password) => {
+                try {
+                  const response = await api.post('/auth/reset-password-otp', {
+                    resetToken,
+                    password,
+                  });
+                  if (response.data.success) {
+                    showToast('Password reset successfully!', 'success');
+                    const loginResult = await login(otpEmail, password);
+                    if (loginResult.success) {
+                      onSuccess();
+                      onClose();
+                      setShowOtpModal(false);
+                    }
+                    return true;
+                  }
+                } catch (error) {
+                  throw new Error(error.response?.data?.message || 'Failed to reset password');
+                }
+              }}
+              isOpen={showOtpModal}
+            />
           ) : (
-            <form onSubmit={handleSignup} className="flex flex-col gap-4">
-              <div>
-                <label className="text-xs font-bold text-ink block mb-1.5">{t.fullName}</label>
-                <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
-                  <User size={16} className="text-ink-soft flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={signupData.name}
-                    onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
-                    placeholder="Your Name"
-                    className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
-                    required
-                  />
+            <>
+              {error && (
+                <div className="bg-red-50 text-red-500 px-4 py-2.5 rounded-lg text-sm font-semibold mb-4">
+                  {error}
                 </div>
-              </div>
+              )}
 
-              <div>
-                <label className="text-xs font-bold text-ink block mb-1.5">{t.email}</label>
-                <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
-                  <Mail size={16} className="text-ink-soft flex-shrink-0" />
-                  <input
-                    type="email"
-                    value={signupData.email}
-                    onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                    placeholder="you@example.com"
-                    className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
-                    required
-                  />
-                </div>
-              </div>
+              {mode === 'login' ? (
+                <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1.5">{t.email}</label>
+                    <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+                      <Mail size={16} className="text-ink-soft flex-shrink-0" />
+                      <input
+                        type="email"
+                        value={loginData.email}
+                        onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                        placeholder="you@example.com"
+                        className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="text-xs font-bold text-ink block mb-1.5">{t.password}</label>
-                <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
-                  <Lock size={16} className="text-ink-soft flex-shrink-0" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={signupData.password}
-                    onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                    placeholder="••••••••"
-                    className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
-                    required
-                    minLength="6"
-                  />
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1.5">{t.password}</label>
+                    <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+                      <Lock size={16} className="text-ink-soft flex-shrink-0" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={loginData.password}
+                        onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-ink-soft hover:text-ink"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-ink-soft hover:text-ink"
+                    onClick={fillAdmin}
+                    className="text-xs font-semibold text-vermilion bg-vermilion/10 px-3 py-1.5 rounded-full w-fit hover:bg-vermilion/20 transition-colors flex items-center gap-1.5"
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    <Sparkles size={12} /> Admin Login (a@gmail.com)
                   </button>
-                </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-bold text-ink block mb-1.5">{t.phone}</label>
-                <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
-                  <Phone size={16} className="text-ink-soft flex-shrink-0" />
-                  <input
-                    type="tel"
-                    value={signupData.phone}
-                    onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
-                    placeholder="98XXXXXXXX"
-                    className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
-                    required
-                  />
-                </div>
-              </div>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-xs font-bold text-vermilion text-right hover:underline bg-transparent border-0"
+                  >
+                    {t.forgotPw}
+                  </button>
 
-              <div>
-                <label className="text-xs font-bold text-ink block mb-1.5">{t.address}</label>
-                <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
-                  <MapPin size={16} className="text-ink-soft flex-shrink-0" />
-                  <input
-                    type="text"
-                    value={signupData.address}
-                    onChange={(e) => setSignupData({ ...signupData, address: e.target.value })}
-                    placeholder="Your Address"
-                    className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
-                    required
-                  />
-                </div>
-              </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 rounded-full bg-vermilion text-white font-semibold text-sm hover:bg-[#a83a0c] transition-all disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      t.login
+                    )}
+                  </button>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 rounded-full bg-vermilion text-white font-semibold text-sm hover:bg-[#a83a0c] transition-all disabled:opacity-50"
-              >
-                {loading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Loading...
-                  </span>
-                ) : (
-                  t.createAcc
-                )}
-              </button>
+                  <GoogleSignIn onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
 
-              <p className="text-sm text-ink-soft text-center">
-                {t.haveAccount}{' '}
-                <button
-                  type="button"
-                  onClick={() => { setMode('login'); setError(''); }}
-                  className="text-vermilion font-bold hover:underline bg-transparent border-0"
-                >
-                  {t.login}
-                </button>
-              </p>
-            </form>
+                  <p className="text-sm text-ink-soft text-center">
+                    {t.noAccount}{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setMode('signup'); setError(''); }}
+                      className="text-vermilion font-bold hover:underline bg-transparent border-0"
+                    >
+                      {t.signup}
+                    </button>
+                  </p>
+                </form>
+              ) : (
+                <form onSubmit={handleSignup} className="flex flex-col gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1.5">{t.fullName}</label>
+                    <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+                      <User size={16} className="text-ink-soft flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={signupData.name}
+                        onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
+                        placeholder="Your Name"
+                        className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1.5">{t.email}</label>
+                    <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+                      <Mail size={16} className="text-ink-soft flex-shrink-0" />
+                      <input
+                        type="email"
+                        value={signupData.email}
+                        onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
+                        placeholder="you@example.com"
+                        className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1.5">{t.password}</label>
+                    <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+                      <Lock size={16} className="text-ink-soft flex-shrink-0" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={signupData.password}
+                        onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
+                        placeholder="••••••••"
+                        className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                        required
+                        minLength="6"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-ink-soft hover:text-ink"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1.5">{t.phone}</label>
+                    <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+                      <Phone size={16} className="text-ink-soft flex-shrink-0" />
+                      <input
+                        type="tel"
+                        value={signupData.phone}
+                        onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })}
+                        placeholder="98XXXXXXXX"
+                        className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-ink block mb-1.5">{t.address}</label>
+                    <div className="flex items-center gap-2 border border-line rounded-lg px-3 bg-panel focus-within:border-vermilion transition-colors">
+                      <MapPin size={16} className="text-ink-soft flex-shrink-0" />
+                      <input
+                        type="text"
+                        value={signupData.address}
+                        onChange={(e) => setSignupData({ ...signupData, address: e.target.value })}
+                        placeholder="Your Address"
+                        className="w-full py-2.5 bg-transparent border-0 focus:outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3 rounded-full bg-vermilion text-white font-semibold text-sm hover:bg-[#a83a0c] transition-all disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      t.createAcc
+                    )}
+                  </button>
+
+                  <GoogleSignIn onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
+
+                  <p className="text-sm text-ink-soft text-center">
+                    {t.haveAccount}{' '}
+                    <button
+                      type="button"
+                      onClick={() => { setMode('login'); setError(''); }}
+                      className="text-vermilion font-bold hover:underline bg-transparent border-0"
+                    >
+                      {t.login}
+                    </button>
+                  </p>
+                </form>
+              )}
+            </>
           )}
         </div>
       </div>

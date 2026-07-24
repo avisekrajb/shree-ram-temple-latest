@@ -14,29 +14,23 @@ exports.getCloudResources = async (req, res) => {
   try {
     const { type = 'all', maxResults = 50, nextCursor } = req.query;
     
-    // Check if Cloudinary is configured
     if (!isCloudinaryConfigured()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cloudinary is not configured. Please check your environment variables.',
+      return res.json({
+        success: true,
         resources: [],
         total: 0,
         hasMore: false,
         nextCursor: null,
+        message: 'Cloudinary is not configured.',
       });
     }
 
-    let resources = [];
-    let totalCount = 0;
-    let nextCursorValue = null;
-    let hasMoreValue = false;
+    let allResources = [];
 
     try {
-      // Fetch images
       const imageOptions = {
         resource_type: 'image',
         max_results: parseInt(maxResults) || 50,
-        prefix: 'temple/',
       };
       
       if (nextCursor) {
@@ -45,21 +39,7 @@ exports.getCloudResources = async (req, res) => {
 
       const imageResult = await cloudinary.api.resources(imageOptions);
       
-      // Fetch videos
-      const videoOptions = {
-        resource_type: 'video',
-        max_results: parseInt(maxResults) || 50,
-        prefix: 'temple/',
-      };
-      
-      if (nextCursor) {
-        videoOptions.next_cursor = nextCursor;
-      }
-
-      const videoResult = await cloudinary.api.resources(videoOptions);
-
-      // Combine resources
-      const allImages = (imageResult.resources || []).map(r => ({
+      const images = (imageResult.resources || []).map(r => ({
         id: r.public_id,
         url: r.secure_url || r.url,
         type: 'image',
@@ -73,43 +53,57 @@ exports.getCloudResources = async (req, res) => {
         filename: r.public_id ? r.public_id.split('/').pop() : 'unknown',
       }));
 
-      const allVideos = (videoResult.resources || []).map(r => ({
-        id: r.public_id,
-        url: r.secure_url || r.url,
-        type: 'video',
-        format: r.format || 'unknown',
-        size: r.bytes || 0,
-        width: r.width || 0,
-        height: r.height || 0,
-        createdAt: r.created_at || new Date().toISOString(),
-        updatedAt: r.updated_at || new Date().toISOString(),
-        folder: r.folder || '',
-        filename: r.public_id ? r.public_id.split('/').pop() : 'unknown',
-      }));
+      allResources = [...images];
 
-      // Filter by type
-      if (type === 'image') {
-        resources = allImages;
-      } else if (type === 'video') {
-        resources = allVideos;
-      } else {
-        resources = [...allImages, ...allVideos];
+      if (type === 'all' || type === 'video') {
+        const videoOptions = {
+          resource_type: 'video',
+          max_results: parseInt(maxResults) || 50,
+        };
+        
+        if (nextCursor) {
+          videoOptions.next_cursor = nextCursor;
+        }
+
+        const videoResult = await cloudinary.api.resources(videoOptions);
+        
+        const videos = (videoResult.resources || []).map(r => ({
+          id: r.public_id,
+          url: r.secure_url || r.url,
+          type: 'video',
+          format: r.format || 'unknown',
+          size: r.bytes || 0,
+          width: r.width || 0,
+          height: r.height || 0,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || new Date().toISOString(),
+          folder: r.folder || '',
+          filename: r.public_id ? r.public_id.split('/').pop() : 'unknown',
+        }));
+
+        allResources = [...allResources, ...videos];
       }
 
-      // Sort by createdAt (newest first)
-      resources.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (type === 'image') {
+        allResources = allResources.filter(r => r.type === 'image');
+      } else if (type === 'video') {
+        allResources = allResources.filter(r => r.type === 'video');
+      }
 
-      totalCount = resources.length;
-      nextCursorValue = imageResult.next_cursor || videoResult.next_cursor || null;
-      hasMoreValue = !!nextCursorValue;
+      allResources.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-      console.log(`✅ Found ${resources.length} resources (${allImages.length} images, ${allVideos.length} videos)`);
+      res.json({
+        success: true,
+        resources: allResources,
+        total: allResources.length,
+        nextCursor: null,
+        hasMore: false,
+      });
 
     } catch (error) {
       console.error('❌ Error fetching from Cloudinary:', error.message);
       
-      // Return empty resources with error message
-      return res.json({
+      res.json({
         success: true,
         resources: [],
         total: 0,
@@ -118,14 +112,6 @@ exports.getCloudResources = async (req, res) => {
         message: error.message || 'Failed to fetch resources from Cloudinary',
       });
     }
-
-    res.json({
-      success: true,
-      resources,
-      total: totalCount,
-      nextCursor: nextCursorValue,
-      hasMore: hasMoreValue,
-    });
 
   } catch (error) {
     console.error('❌ Get cloud resources error:', error.message);
@@ -136,54 +122,6 @@ exports.getCloudResources = async (req, res) => {
       nextCursor: null,
       hasMore: false,
       message: error.message || 'Failed to fetch resources',
-    });
-  }
-};
-
-// @desc    Get cloud resource by ID
-// @route   GET /api/admin/cloud/resource/:publicId
-// @access  Private/Admin
-exports.getCloudResource = async (req, res) => {
-  try {
-    const { publicId } = req.params;
-    
-    if (!publicId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Public ID is required',
-      });
-    }
-    
-    if (!isCloudinaryConfigured()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cloudinary is not configured.',
-      });
-    }
-    
-    const result = await cloudinary.api.resource(publicId);
-    
-    res.json({
-      success: true,
-      resource: {
-        id: result.public_id,
-        url: result.secure_url || result.url,
-        type: result.resource_type || 'image',
-        format: result.format || 'unknown',
-        size: result.bytes || 0,
-        width: result.width || 0,
-        height: result.height || 0,
-        createdAt: result.created_at || new Date().toISOString(),
-        updatedAt: result.updated_at || new Date().toISOString(),
-        folder: result.folder || '',
-        filename: result.public_id ? result.public_id.split('/').pop() : 'unknown',
-      }
-    });
-  } catch (error) {
-    console.error('Get cloud resource error:', error.message);
-    res.status(404).json({
-      success: false,
-      message: error.message || 'Resource not found',
     });
   }
 };
@@ -210,27 +148,69 @@ exports.deleteCloudResource = async (req, res) => {
       });
     }
     
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: resourceType,
-    });
+    console.log(`🗑️ Attempting to delete resource: ${publicId} (${resourceType})`);
     
-    if (result.result === 'ok') {
-      res.json({
-        success: true,
-        message: 'Resource deleted successfully',
-        publicId,
+    // Try to delete from Cloudinary
+    try {
+      const result = await cloudinary.uploader.destroy(publicId, {
+        resource_type: resourceType,
       });
-    } else {
-      res.status(400).json({
-        success: false,
-        message: result.result || 'Failed to delete resource',
-      });
+      
+      console.log('Delete result:', result);
+      
+      if (result.result === 'ok') {
+        return res.json({
+          success: true,
+          message: 'Resource deleted successfully',
+          publicId,
+        });
+      } else if (result.result === 'not found') {
+        // Resource doesn't exist in Cloudinary, but we can still return success
+        return res.json({
+          success: true,
+          message: 'Resource already deleted or not found',
+          publicId,
+          alreadyDeleted: true,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: result.result || 'Failed to delete resource',
+          result,
+        });
+      }
+    } catch (cloudinaryError) {
+      // If Cloudinary returns 404, the resource doesn't exist
+      if (cloudinaryError.http_code === 404 || cloudinaryError.message === 'Resource not found') {
+        console.log('Resource not found in Cloudinary, treating as already deleted');
+        return res.json({
+          success: true,
+          message: 'Resource already deleted or not found',
+          publicId,
+          alreadyDeleted: true,
+        });
+      }
+      
+      // Re-throw other errors
+      throw cloudinaryError;
     }
   } catch (error) {
     console.error('Delete cloud resource error:', error.message);
+    
+    // Check if it's a 404 from the request
+    if (error.http_code === 404 || error.message === 'Resource not found') {
+      return res.json({
+        success: true,
+        message: 'Resource already deleted or not found',
+        publicId: req.params.publicId,
+        alreadyDeleted: true,
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to delete resource',
+      error: error.message,
     });
   }
 };
@@ -256,17 +236,51 @@ exports.deleteMultipleCloudResources = async (req, res) => {
       });
     }
     
+    console.log(`🗑️ Deleting ${publicIds.length} resources`);
+    
     const results = [];
+    let successCount = 0;
+    let alreadyDeletedCount = 0;
+    
     for (const publicId of publicIds) {
       try {
-        const result = await cloudinary.uploader.destroy(publicId, {
-          resource_type: resourceType,
-        });
-        results.push({
-          publicId,
-          success: result.result === 'ok',
-          message: result.result === 'ok' ? 'Deleted' : result.result,
-        });
+        // Determine resource type from ID or use provided type
+        let type = resourceType;
+        if (publicId.includes('/video/') || publicId.endsWith('.mp4') || publicId.endsWith('.mov')) {
+          type = 'video';
+        }
+        
+        try {
+          const result = await cloudinary.uploader.destroy(publicId, {
+            resource_type: type,
+          });
+          
+          const isSuccess = result.result === 'ok';
+          if (isSuccess) successCount++;
+          
+          results.push({
+            publicId,
+            success: isSuccess,
+            message: isSuccess ? 'Deleted' : result.result,
+          });
+        } catch (cloudinaryError) {
+          // If resource not found, count as already deleted
+          if (cloudinaryError.http_code === 404 || cloudinaryError.message === 'Resource not found') {
+            alreadyDeletedCount++;
+            results.push({
+              publicId,
+              success: true,
+              message: 'Already deleted or not found',
+              alreadyDeleted: true,
+            });
+          } else {
+            results.push({
+              publicId,
+              success: false,
+              message: cloudinaryError.message,
+            });
+          }
+        }
       } catch (error) {
         results.push({
           publicId,
@@ -276,14 +290,14 @@ exports.deleteMultipleCloudResources = async (req, res) => {
       }
     }
     
-    const successCount = results.filter(r => r.success).length;
-    
     res.json({
       success: true,
       results,
       total: results.length,
-      successCount,
-      failedCount: results.length - successCount,
+      successCount: successCount + alreadyDeletedCount,
+      failedCount: results.length - successCount - alreadyDeletedCount,
+      alreadyDeletedCount,
+      message: `Deleted ${successCount + alreadyDeletedCount} of ${results.length} resources${alreadyDeletedCount > 0 ? ` (${alreadyDeletedCount} already deleted)` : ''}`,
     });
   } catch (error) {
     console.error('Delete multiple resources error:', error.message);
@@ -299,7 +313,6 @@ exports.deleteMultipleCloudResources = async (req, res) => {
 // @access  Private/Admin
 exports.getCloudStats = async (req, res) => {
   try {
-    // Check if Cloudinary is configured
     if (!isCloudinaryConfigured()) {
       return res.json({
         success: true,
@@ -318,24 +331,22 @@ exports.getCloudStats = async (req, res) => {
     let images = { resources: [] };
     let videos = { resources: [] };
     
-    // Try to fetch images
     try {
       images = await cloudinary.api.resources({
         resource_type: 'image',
         max_results: 500,
-        prefix: 'temple/',
       });
+      console.log(`📸 Found ${images.resources?.length || 0} images`);
     } catch (error) {
       console.log('Error fetching images:', error.message);
     }
     
-    // Try to fetch videos
     try {
       videos = await cloudinary.api.resources({
         resource_type: 'video',
         max_results: 500,
-        prefix: 'temple/',
       });
+      console.log(`🎬 Found ${videos.resources?.length || 0} videos`);
     } catch (error) {
       console.log('Error fetching videos:', error.message);
     }
@@ -400,26 +411,15 @@ exports.searchCloudResources = async (req, res) => {
       });
     }
     
-    let resources = [];
-    let searchResults = [];
+    let allResources = [];
 
     try {
-      // Search in images
       const imageResult = await cloudinary.api.resources({
         resource_type: 'image',
         max_results: parseInt(maxResults) || 50,
-        prefix: 'temple/',
       });
 
-      // Search in videos
-      const videoResult = await cloudinary.api.resources({
-        resource_type: 'video',
-        max_results: parseInt(maxResults) || 50,
-        prefix: 'temple/',
-      });
-
-      // Combine and filter
-      const allImages = (imageResult.resources || []).map(r => ({
+      const images = (imageResult.resources || []).map(r => ({
         id: r.public_id,
         url: r.secure_url || r.url,
         type: 'image',
@@ -433,51 +433,52 @@ exports.searchCloudResources = async (req, res) => {
         filename: r.public_id ? r.public_id.split('/').pop() : 'unknown',
       }));
 
-      const allVideos = (videoResult.resources || []).map(r => ({
-        id: r.public_id,
-        url: r.secure_url || r.url,
-        type: 'video',
-        format: r.format || 'unknown',
-        size: r.bytes || 0,
-        width: r.width || 0,
-        height: r.height || 0,
-        createdAt: r.created_at || new Date().toISOString(),
-        updatedAt: r.updated_at || new Date().toISOString(),
-        folder: r.folder || '',
-        filename: r.public_id ? r.public_id.split('/').pop() : 'unknown',
-      }));
+      allResources = [...images];
 
-      const combined = [...allImages, ...allVideos];
-      
-      // Filter by search query
-      resources = combined.filter(r => {
+      if (type === 'all' || type === 'video') {
+        const videoResult = await cloudinary.api.resources({
+          resource_type: 'video',
+          max_results: parseInt(maxResults) || 50,
+        });
+
+        const videos = (videoResult.resources || []).map(r => ({
+          id: r.public_id,
+          url: r.secure_url || r.url,
+          type: 'video',
+          format: r.format || 'unknown',
+          size: r.bytes || 0,
+          width: r.width || 0,
+          height: r.height || 0,
+          createdAt: r.created_at || new Date().toISOString(),
+          updatedAt: r.updated_at || new Date().toISOString(),
+          folder: r.folder || '',
+          filename: r.public_id ? r.public_id.split('/').pop() : 'unknown',
+        }));
+
+        allResources = [...allResources, ...videos];
+      }
+
+      const filtered = allResources.filter(r => {
         const filename = r.filename || '';
         return filename.toLowerCase().includes(q.toLowerCase()) ||
                (r.format && r.format.toLowerCase().includes(q.toLowerCase()));
       });
 
-      // Filter by type
-      if (type === 'image') {
-        resources = resources.filter(r => r.type === 'image');
-      } else if (type === 'video') {
-        resources = resources.filter(r => r.type === 'video');
-      }
+      res.json({
+        success: true,
+        resources: filtered,
+        total: filtered.length,
+      });
 
     } catch (error) {
       console.error('Search error:', error.message);
-      return res.json({
+      res.json({
         success: true,
         resources: [],
         total: 0,
         message: error.message || 'Search failed',
       });
     }
-
-    res.json({
-      success: true,
-      resources,
-      total: resources.length,
-    });
   } catch (error) {
     console.error('Search cloud resources error:', error.message);
     res.json({
@@ -485,6 +486,54 @@ exports.searchCloudResources = async (req, res) => {
       resources: [],
       total: 0,
       message: error.message || 'Search failed',
+    });
+  }
+};
+
+// @desc    Get cloud resource by ID
+// @route   GET /api/admin/cloud/resource/:publicId
+// @access  Private/Admin
+exports.getCloudResource = async (req, res) => {
+  try {
+    const { publicId } = req.params;
+    
+    if (!publicId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Public ID is required',
+      });
+    }
+    
+    if (!isCloudinaryConfigured()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cloudinary is not configured.',
+      });
+    }
+    
+    const result = await cloudinary.api.resource(publicId);
+    
+    res.json({
+      success: true,
+      resource: {
+        id: result.public_id,
+        url: result.secure_url || result.url,
+        type: result.resource_type || 'image',
+        format: result.format || 'unknown',
+        size: result.bytes || 0,
+        width: result.width || 0,
+        height: result.height || 0,
+        createdAt: result.created_at || new Date().toISOString(),
+        updatedAt: result.updated_at || new Date().toISOString(),
+        folder: result.folder || '',
+        filename: result.public_id ? result.public_id.split('/').pop() : 'unknown',
+      }
+    });
+  } catch (error) {
+    console.error('Get cloud resource error:', error.message);
+    res.status(404).json({
+      success: false,
+      message: error.message || 'Resource not found',
     });
   }
 };
