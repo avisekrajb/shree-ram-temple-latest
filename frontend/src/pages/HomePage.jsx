@@ -16,14 +16,14 @@ gsap.registerPlugin(ScrollTrigger);
 // Default fallback images
 const defaultHeroImage = '/1.jpg';
 const defaultGalleryImages = [
-  { id: 'g1', src: '/1.jpg', alt: { en: 'Temple View', ne: 'मन्दिर दृश्य' } },
-  { id: 'g2', src: '/2.jpg', alt: { en: 'Temple Interior', ne: 'मन्दिर भित्री भाग' } },
-  { id: 'g3', src: '/3.jpg', alt: { en: 'Temple Deity', ne: 'मन्दिर देवता' } },
-  { id: 'g4', src: '/4.jpg', alt: { en: 'Festival Celebration', ne: 'महोत्सव मनाउँदै' } },
-  { id: 'g5', src: '/6.jpg', alt: { en: 'Devotional Gathering', ne: 'भक्ति भेला' } },
-  { id: 'g6', src: '/1.jpg', alt: { en: 'Temple Architecture', ne: 'मन्दिर वास्तुकला' } },
-  { id: 'g7', src: '/2.jpg', alt: { en: 'Evening Aarti', ne: 'साँझको आरती' } },
-  { id: 'g8', src: '/3.jpg', alt: { en: 'Sacred Rituals', ne: 'पवित्र अनुष्ठान' } },
+  { id: 'g1', src: '/1.jpg', alt: { en: 'Temple View', ne: 'मन्दिर दृश्य', hi: 'मंदिर दृश्य', zh: '寺庙景观', ta: 'கோவில் காட்சி' } },
+  { id: 'g2', src: '/2.jpg', alt: { en: 'Temple Interior', ne: 'मन्दिर भित्री भाग', hi: 'मंदिर आंतरिक', zh: '寺庙内部', ta: 'கோவில் உட்புறம்' } },
+  { id: 'g3', src: '/3.jpg', alt: { en: 'Temple Deity', ne: 'मन्दिर देवता', hi: 'मंदिर देवता', zh: '寺庙神像', ta: 'கோவில் தெய்வம்' } },
+  { id: 'g4', src: '/4.jpg', alt: { en: 'Festival Celebration', ne: 'महोत्सव मनाउँदै', hi: 'त्योहार समारोह', zh: '节日庆典', ta: 'திருவிழா கொண்டாட்டம்' } },
+  { id: 'g5', src: '/6.jpg', alt: { en: 'Devotional Gathering', ne: 'भक्ति भेला', hi: 'भक्ति समागम', zh: '虔诚聚会', ta: 'பக்தி கூட்டம்' } },
+  { id: 'g6', src: '/1.jpg', alt: { en: 'Temple Architecture', ne: 'मन्दिर वास्तुकला', hi: 'मंदिर वास्तुकला', zh: '寺庙建筑', ta: 'கோவில் கட்டிடக்கலை' } },
+  { id: 'g7', src: '/2.jpg', alt: { en: 'Evening Aarti', ne: 'साँझको आरती', hi: 'शाम आरती', zh: '晚祷仪式', ta: 'மாலை ஆரத்தி' } },
+  { id: 'g8', src: '/3.jpg', alt: { en: 'Sacred Rituals', ne: 'पवित्र अनुष्ठान', hi: 'पवित्र अनुष्ठान', zh: '神圣仪式', ta: 'புனித சடங்குகள்' } },
 ];
 
 // Local images and video from public folder
@@ -33,7 +33,6 @@ const heroImage2 = '/2.jpg';
 const heroImage3 = '/3.jpg';
 const heroImage4 = '/4.jpg';
 const heroImage5 = '/6.jpg';
-
 
 // ─── Fullscreen Image Modal ──────────────────────────────────────────────────
 function ImageModal({ src, alt, onClose }) {
@@ -330,14 +329,29 @@ function Hero({ settings }) {
   );
 }
 
-// ─── Quote Strip ──────────────────────────────────────────────────────────────
+// ─── Quote Strip - FULLY LOCALIZED ──────────────────────────────────────────
 function QuoteStrip({ quote }) {
+  const { t, lang } = useLanguage();
+  
+  // Get localized quote
+  const getLocalizedQuote = () => {
+    if (!quote) return t.dailyQuote || "Where there is righteousness in the heart, there is beauty in the character.";
+    if (typeof quote === 'string') return quote;
+    return quote[lang] || quote.en || t.dailyQuote || "Where there is righteousness in the heart, there is beauty in the character.";
+  };
+
+  const localizedQuote = getLocalizedQuote();
+
   return (
     <div className="bg-maroon text-white flex items-start gap-3 px-4 md:px-6 py-4 md:py-5 max-w-7xl mx-auto -mt-px rounded-b-xl shadow-lg">
       <QuoteIcon size={18} className="text-marigold flex-shrink-0 mt-1" />
       <div>
-        <span className="text-[10px] md:text-xs uppercase tracking-widest text-marigold font-bold">Thought for the Day</span>
-        <p className="font-serif text-sm md:text-base text-white/90 mt-1 leading-relaxed">{quote}</p>
+        <span className="text-[10px] md:text-xs uppercase tracking-widest text-marigold font-bold">
+          {t.quoteLabel || 'Thought for the Day'}
+        </span>
+        <p className="font-serif text-sm md:text-base text-white/90 mt-1 leading-relaxed">
+          {localizedQuote}
+        </p>
       </div>
     </div>
   );
@@ -399,10 +413,10 @@ function AboutPreview({ settings, onOpen }) {
   const text = getLocalizedText(about.text, lang) || t.aboutTextDefault || 'Nestled in the heart of Gaushala, Shree Ramchandra Temple has stood as a beacon of devotion for generations.';
   const timings = settings?.timings || { open: '05:00 AM', close: '08:00 PM' };
 
-  // Get images for grid
-  const image1 = aboutImages[0]?.src || '/2.jpg';
-  const image2 = aboutImages[1]?.src || '/3.jpg';
-  const image3 = aboutImages[2]?.src || '/1.jpg';
+  // Get images from public folder - using hardcoded paths
+  const image1 = '/aboutusherosection.jpeg';
+  const image2 = '/aboutusphoto.jpeg';
+  const image3 = '/rammandir.jpeg';
 
   return (
     <section ref={sectionRef} className="max-w-7xl mx-auto px-6 py-20">
@@ -411,7 +425,7 @@ function AboutPreview({ settings, onOpen }) {
           <h2 className="font-serif text-3xl sm:text-4xl mb-6" style={{ color: "#520505" }}>
             {title}
           </h2>
-          <p className="text-base sm:text-lg text-mute leading-relaxed mb-8">
+          <p className="text-base sm:text-lg text-mute leading-relaxed mb-8 text-justify">
             {text}
           </p>
           <ul className="list-none p-0 m-0 flex flex-col gap-2 mb-6">
@@ -714,7 +728,6 @@ function EventsTeaser({ onOpen }) {
   );
 }
 
-// ─── Gallery Teaser ───────────────────────────────────────────────────────────
 function GalleryTeaser({ settings, onOpen }) {
   const { t, lang } = useLanguage();
   const galleryImages = settings?.galleryImages?.filter(img => img.enabled) || defaultGalleryImages;
@@ -725,6 +738,13 @@ function GalleryTeaser({ settings, onOpen }) {
   const tripledImages = [...imgs, ...imgs, ...imgs];
   const [isHovered, setIsHovered] = useState(false);
 
+  // SPEED CONTROL: Adjust this value to control scroll speed
+  // Higher number = slower, Lower number = faster
+  // Example: 0.5 = 2x faster, 2 = 2x slower, 1 = normal speed
+  const speedMultiplier = 0.25; // Change this value to adjust speed
+  const BASE_SCROLL_DURATION = count * 8;
+  const SCROLL_DURATION = BASE_SCROLL_DURATION / speedMultiplier;
+
   const getLocalizedText = (obj) => {
     if (!obj) return '';
     if (typeof obj === 'string') return obj;
@@ -732,10 +752,6 @@ function GalleryTeaser({ settings, onOpen }) {
   };
 
   if (count === 0) return null;
-
-  // SPEED CONTROL: Adjust this value to control scroll speed
-  // Higher number = slower, Lower number = faster
-  const SCROLL_DURATION = count * 8;
 
   return (
     <section className="py-20 overflow-hidden">
@@ -824,8 +840,14 @@ function LiveDarshan({ settings }) {
   const liveVideo = settings?.liveVideo || {
     enabled: true,
     url: 'https://www.youtube.com/embed/aPGvK6tJMXk?autoplay=1&mute=1&playsinline=1&rel=0',
-    title: { en: 'Live Darshan', ne: 'लाइभ दर्शन' },
-    description: { en: 'Experience the divine presence of Lord Ram from anywhere in the world', ne: 'संसारको कुनै पनि स्थानबाट भगवान रामको दिव्य उपस्थिति अनुभव गर्नुहोस्' },
+    title: { en: 'Live Darshan', ne: 'लाइभ दर्शन', hi: 'लाइव दर्शन', zh: '现场朝拜', ta: 'நேரடி தரிசனம்' },
+    description: { 
+      en: 'Experience the divine presence of Lord Ram from anywhere in the world',
+      ne: 'संसारको कुनै पनि स्थानबाट भगवान रामको दिव्य उपस्थिति अनुभव गर्नुहोस्',
+      hi: 'दुनिया में कहीं से भी भगवान राम की दिव्य उपस्थिति का अनुभव करें',
+      zh: '从世界任何地方体验拉姆勋爵的神圣存在',
+      ta: 'உலகில் எங்கிருந்தும் இறைவன் ராமின் தெய்வீக இருப்பை அனுபவியுங்கள்'
+    },
   };
   const timings = settings?.timings || { open: '05:00 AM', close: '08:00 PM' };
 
@@ -1098,6 +1120,7 @@ const HomePage = () => {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const fetched = useRef(false);
+  const { t, lang } = useLanguage();
 
   useEffect(() => {
     if (fetched.current) return;
@@ -1130,7 +1153,21 @@ const HomePage = () => {
     );
   }
 
-  const quote = settings?.quotes?.['en'] || settings?.quotes?.en || 'Where there is righteousness in the heart, there is beauty in the character.';
+  // Get the quote - supports both string and object with language keys
+  const getQuote = () => {
+    const quoteData = settings?.quotes;
+    if (!quoteData) return t.dailyQuote || "Where there is righteousness in the heart, there is beauty in the character.";
+    
+    // If it's an object with language keys
+    if (typeof quoteData === 'object' && !Array.isArray(quoteData)) {
+      return quoteData[lang] || quoteData.en || t.dailyQuote || "Where there is righteousness in the heart, there is beauty in the character.";
+    }
+    
+    // If it's a string
+    return quoteData || t.dailyQuote || "Where there is righteousness in the heart, there is beauty in the character.";
+  };
+
+  const quote = getQuote();
 
   return (
     <>
