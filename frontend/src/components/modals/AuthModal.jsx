@@ -349,7 +349,7 @@ const AuthModal = ({ open, onClose, onSuccess, setForgotModal }) => {
   }, []);
 
   const fillAdmin = () => {
-    setLoginData({ email: 'a@gmail.com', password: '123456' });
+    setLoginData({ email: 'a@gmail.com', password: '789456' });
   };
 
   useEffect(() => {
